@@ -1,10 +1,9 @@
 # Symphonia Add-ons
 
-Local Symphonia-compatible format and codec crates used by SOTF.
-
-These crates live together because they extend Symphonia in areas that are not
-covered by the upstream default crate set, or that need local integration before
-they are suitable for upstreaming.
+Standalone workspace of Symphonia-compatible format and codec crates used by
+SOTF. These crates extend Symphonia in areas that are not covered by the
+upstream default crate set, or that need local integration before they are
+suitable for upstreaming.
 
 ## Crates
 
@@ -37,9 +36,19 @@ The add-ons are container/codec integration crates. They should keep behavior
 close to Symphonia's `FormatReader` and `AudioDecoder` expectations and avoid
 SOTF player UI or library-scan policy.
 
-## Verification
+## Development
 
-Useful focused checks:
+This repository is a Cargo workspace. Use `just` for common tasks:
+
+```bash
+just check      # cargo check --workspace --all-targets
+just test       # cargo test --workspace --all-targets
+just lint       # cargo clippy --workspace --all-targets -- -D warnings
+just fmt        # cargo fmt --all
+just clean      # cargo clean + remove temp/lock files
+```
+
+Focused crate-level checks work as usual:
 
 ```bash
 cargo test -p symphonia-format-sacd
