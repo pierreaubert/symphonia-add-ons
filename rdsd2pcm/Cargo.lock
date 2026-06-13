@@ -61,16 +61,16 @@ dependencies = [
 
 [[package]]
 name = "dff-meta"
-version = "0.1.2"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbeb9f7515283cdd133e903cff94068336c676507e751f4965a22a0fe18b4bcd"
+checksum = "e0a3f3bc1ee45e53ed8182c6a06af4505c9a24ff4d3303a0d0c36d5ce46bf1ac"
 dependencies = [
  "id3",
 ]
 
 [[package]]
 name = "dsd-reader"
-version = "0.1.0"
+version = "0.3.1"
 dependencies = [
  "dff-meta",
  "dsf-meta",
@@ -80,9 +80,9 @@ dependencies = [
 
 [[package]]
 name = "dsf-meta"
-version = "0.2.5"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd7e18eb3b319804affa6da2a3aec07321b92f6647fdd6daafe3560ff7037070"
+checksum = "fa1d4230005238406c7e20c6e966ad2e3e516cd42fb81d3818c9607c8367bb8d"
 dependencies = [
  "id3",
  "sampled_data_duration",
@@ -194,9 +194,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.8.5"
+version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
+checksum = "5ca0ecfa931c29007047d1bc58e623ab12e5590e8c7cc53200d5202b69266d8a"
 dependencies = [
  "libc",
  "rand_chacha",
@@ -224,7 +224,7 @@ dependencies = [
 
 [[package]]
 name = "rdsd2pcm"
-version = "0.1.1"
+version = "0.3.0"
 dependencies = [
  "dff-meta",
  "dsd-reader",
