@@ -61,7 +61,7 @@ impl Dither {
 
     fn init(&mut self) {
         if self.dither_type != DitherType::None {
-            let _ = rand::thread_rng();
+            let _ = rand::rng();
         }
         if self.dither_type == DitherType::FPD {
             self.init_rand();
@@ -69,17 +69,17 @@ impl Dither {
     }
 
     fn init_rand(&mut self) {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         while self.fpd < 16386 {
-            self.fpd = rng.r#gen::<u32>();
+            self.fpd = rng.random::<u32>();
         }
     }
 
     fn process_tpdf(&mut self) -> f64 {
         // Triangular PDF dither with 1 LSB peak-to-peak amplitude (input already scaled so 1.0 = 1 LSB)
-        let mut rng = rand::thread_rng();
-        let r1: f64 = rng.gen_range(0.0..=0.5);
-        let r2: f64 = rng.gen_range(0.0..=0.5);
+        let mut rng = rand::rng();
+        let r1: f64 = rng.random_range(0.0..=0.5);
+        let r2: f64 = rng.random_range(0.0..=0.5);
         r1 - r2 // range [-0.5, 0.5], triangular distribution
     }
 
@@ -95,8 +95,8 @@ impl Dither {
     }
 
     fn process_rpdf(&mut self) -> f64 {
-        let mut rng = rand::thread_rng();
-        rng.r#gen::<f64>() - 0.5
+        let mut rng = rand::rng();
+        rng.random::<f64>() - 0.5
     }
 
     fn fpdither(&mut self, sample: &mut f64) {
