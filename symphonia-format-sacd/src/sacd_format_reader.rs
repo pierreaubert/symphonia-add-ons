@@ -102,8 +102,18 @@ impl<'s> SacdFormatReader<'s> {
 }
 
 impl Scoreable for SacdFormatReader<'_> {
-    fn score(_src: ScopedStream<&mut MediaSourceStream<'_>>) -> SymphoniaResult<Score> {
-        Ok(Score::Supported(1))
+    fn score(mut src: ScopedStream<&mut MediaSourceStream<'_>>) -> SymphoniaResult<Score> {
+        use symphonia_core::io::ReadBytes;
+        // The probe framework positions the stream at a `probe_data` marker
+        // match (`b"SACD"`, i.e. the master-TOC magic), so just verify the
+        // full 8-byte magic instead of blind-claiming the stream.
+        let mut magic = [0u8; 8];
+        let claimed = src.read_buf_exact(&mut magic).is_ok() && &magic == b"SACDMTOC";
+        Ok(if claimed {
+            Score::Supported(100)
+        } else {
+            Score::Unsupported
+        })
     }
 }
 
@@ -138,6 +148,11 @@ impl FormatReader for SacdFormatReader<'_> {
         self.metadata.metadata()
     }
 
+    /// Only rewind-to-start is supported: any seek target other than
+    /// timestamp/time zero resets to the first packet of the first track,
+    /// and non-zero targets return `OutOfRange`. Per-track random access
+    /// would need an LSN index over variable-length frames and is not
+    /// implemented.
     fn seek(&mut self, _mode: SeekMode, to: SeekTo) -> SymphoniaResult<SeekedTo> {
         let (track_id, required_ts) = match to {
             SeekTo::Time { time, track_id } => {

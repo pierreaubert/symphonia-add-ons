@@ -20,26 +20,43 @@
 //! Logging implemented via log crate.
 //! Reads DSD from stdin or file, writes PCM to stdout or file.
 
-#![allow(clippy::all)]
-
+#[cfg(feature = "file-io")]
 mod audio_file;
 mod buffer;
 mod byte_precalc_decimator;
+#[cfg(feature = "file-io")]
 mod conversion_context;
+#[cfg(feature = "file-io")]
 mod dither;
+// Imported filter tables carry full-precision literals by design.
+#[allow(
+    clippy::excessive_precision,
+    reason = "imported filter tables carry full-precision literals"
+)]
 mod filters;
+// Imported filter tables carry full-precision literals by design.
+#[allow(
+    clippy::excessive_precision,
+    reason = "imported filter tables carry full-precision literals"
+)]
 mod filters_lm;
 mod lm_resampler;
+#[cfg(feature = "file-io")]
 mod pcm_writer;
 
+#[cfg(feature = "file-io")]
 use std::sync::atomic::AtomicBool;
+#[cfg(feature = "file-io")]
 use std::{error::Error, fs, io, path::PathBuf, sync::mpsc};
 
+#[cfg(feature = "file-io")]
 pub use crate::conversion_context::ProgressUpdate;
+#[cfg(feature = "file-io")]
 use crate::{
     conversion_context::ConversionContext, dither::Dither,
     lm_resampler::compute_decim_and_upsample, pcm_writer::PcmWriter,
 };
+
 pub use buffer::{
     DsdBitOrder, DsdPcmConverter, DsdPcmError, DsdPcmOptions,
     PcmOutputEncoding,
@@ -50,15 +67,19 @@ pub use dsd_reader::dsd_file::{DsdFileFormat, FormatExtensions};
 pub use dsd_reader::{DsdReader, Endianness, FmtType};
 
 /// `100.0`
+#[cfg(feature = "file-io")]
 pub const ONE_HUNDRED_PERCENT: f32 = 100.0;
 /// `["dsf", "dff", "dsd"]`
+#[cfg(feature = "file-io")]
 pub const DSD_EXTENSIONS: [&str; 3] = ["dsf", "dff", "dsd"];
 
-/// Main Rdsd2Pcm conversion struct
+/// Main Rdsd2Pcm conversion struct (requires the `file-io` feature).
+#[cfg(feature = "file-io")]
 pub struct Rdsd2Pcm {
     conv_ctx: ConversionContext,
 }
 
+#[cfg(feature = "file-io")]
 impl Rdsd2Pcm {
     /// Create a new Rdsd2Pcm conversion context.
     /// Certain input parameters will be overriden when
@@ -79,6 +100,10 @@ impl Rdsd2Pcm {
     /// * `append_rate_suffix` - Whether to append the sample rate to output file names and album tags
     /// * `base_dir` - Base directory for output files' relative paths
     /// * `in_path` - Optional path to input DSD file. `stdin` assumed if None. .dsd files are considered raw DSD.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "legacy file-conversion constructor API; splitting it is separate work"
+    )]
     pub fn new(
         bit_depth: usize,
         out_type: OutputType,
@@ -175,6 +200,10 @@ impl Rdsd2Pcm {
     /// * `append_rate_suffix` - Whether to append the sample rate to output file names and album tags
     /// * `base_dir` - Base directory for output files' relative paths
     /// * `in_path` - Path to input DSD container file (e.g., .dsf or .dff)
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "legacy file-conversion constructor API; splitting it is separate work"
+    )]
     pub fn from_container(
         bit_depth: usize,
         out_type: OutputType,
@@ -204,6 +233,10 @@ impl Rdsd2Pcm {
         )
     }
 
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "legacy file-conversion constructor API; splitting it is separate work"
+    )]
     fn delegate_new(
         dsd_reader: DsdReader,
         bit_depth: usize,
@@ -269,9 +302,8 @@ impl Rdsd2Pcm {
         upsample: u32,
     ) -> usize {
         let bits_per_chan = block_size * 8;
-        let frames_max = ((bits_per_chan * (upsample as usize))
-            + (decim.abs() as usize - 1))
-            / (decim.abs() as usize);
+        let frames_max = (bits_per_chan * (upsample as usize))
+            .div_ceil(decim.unsigned_abs() as usize);
         let lm_slack = if upsample > 1 { 16 } else { 0 };
         frames_max + lm_slack
     }
@@ -304,7 +336,8 @@ impl Rdsd2Pcm {
     }
 }
 
-/// Output dither type
+/// Output dither type (requires the `file-io` feature).
+#[cfg(feature = "file-io")]
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum DitherType {
     /// Triangular probability density function dither
@@ -332,7 +365,8 @@ pub enum FilterType {
     XLD,
 }
 
-/// Output type to write. Either standard output or file.
+/// Output type to write. Either standard output or file (requires the `file-io` feature).
+#[cfg(feature = "file-io")]
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum OutputType {
     /// Raw PCM to stdout
@@ -343,6 +377,7 @@ pub enum OutputType {
     Flac,
 }
 
+#[cfg(feature = "file-io")]
 impl From<&str> for OutputType {
     fn from(s: &str) -> Self {
         match s.to_lowercase().as_str() {
@@ -356,6 +391,7 @@ impl From<&str> for OutputType {
 }
 
 /// Find all DSD files in the provided paths, optionally recursing into directories
+#[cfg(feature = "file-io")]
 pub fn find_dsd_files(
     paths: &[PathBuf],
     recurse: bool,
@@ -391,7 +427,8 @@ pub fn find_dsd_files(
 
 /// Check if the provided path is a DSD file based on its extension.
 /// True if extension in `rdsd2pcm::DSD_EXTENSIONS`.
-pub fn is_dsd_file(path: &PathBuf) -> bool {
+#[cfg(feature = "file-io")]
+pub fn is_dsd_file(path: &std::path::Path) -> bool {
     if path.is_file()
         && let Some(ext) = path.extension()
         && let ext_lower = ext.to_ascii_lowercase().to_string_lossy()

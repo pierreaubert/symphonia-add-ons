@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Replaced panicking `unwrap()`s on decorrelation-weight parsing and Matroska
+  block-sample handling with proper decode errors on truncated input.
+- Migrated stereo chunk iteration to `as_chunks` (clippy gate is green).
+
+### Added
+- Added corrupt-input rejection tests for weights, channel info, and Matroska
+  packet expansion.
+
 ## [0.1.0] - 2026-06-09
 
 ### Added

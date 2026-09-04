@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Format probing now verifies the `SACDMTOC` magic instead of blind-claiming
+  every probed stream.
+- Removed a dead packet-count range check on 3-bit sector header fields.
+
+### Changed
+- Documented that seeking only supports rewind-to-start; non-zero targets
+  return `OutOfRange`.
+
+### Added
+- Added probe accept/reject, seek rewind, and metadata album-title tests.
+
 ## [0.1.1] - 2026-06-09
 
 ### Added

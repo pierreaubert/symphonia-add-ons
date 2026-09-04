@@ -28,23 +28,23 @@ pub(super) fn build_stage1_lut_from_right_half(
     let mut out: Vec<Vec<[f64; 256]>> = Vec::with_capacity(phases.len());
     for taps in &phases {
         let n = taps.len();
-        let groups = (n + 7) / 8;
+        let groups = n.div_ceil(8);
         let mut phase_lut: Vec<[f64; 256]> = Vec::with_capacity(groups);
         for g in 0..groups {
             let base = g * 8;
             let mut coeffs: [f64; 8] = [0.0; 8];
-            for j in 0..8 {
+            for (j, slot) in coeffs.iter_mut().enumerate() {
                 let idx = base + j;
                 if idx < n {
-                    coeffs[j] = taps[idx];
+                    *slot = taps[idx];
                 }
             }
             let mut group_lut = [0.0f64; 256];
             for b in 0u16..256u16 {
                 let mut sum = 0.0f64;
-                for j in 0..8 {
+                for (j, c) in coeffs.iter().enumerate() {
                     let sign = if (b >> j) & 1 == 1 { 1.0 } else { -1.0 };
-                    sum += coeffs[j] * sign;
+                    sum += c * sign;
                 }
                 group_lut[b as usize] = sum;
             }

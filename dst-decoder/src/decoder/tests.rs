@@ -7,6 +7,8 @@ use super::fir::fir_predict;
 use super::fir::fir_predict_avx2;
 #[cfg(any(test, not(target_arch = "x86_64")))]
 use super::fir::fir_predict_scalar;
+#[cfg(target_arch = "x86_64")]
+use super::fir::fir_predict_sse2;
 use super::misc::ac_get_ptable_index;
 use super::misc::log2_round_up;
 use super::misc::reverse7_lsbs;
@@ -179,9 +181,43 @@ fn fir_predict_simd_matches_scalar() {
         assert_eq!(fir_predict(&ftable, &st, false), expected);
 
         #[cfg(target_arch = "x86_64")]
+        assert_eq!(fir_predict_sse2(&ftable, &st), expected);
+
+        #[cfg(target_arch = "x86_64")]
         if std::is_x86_feature_detected!("avx2") {
             // SAFETY: guarded by the runtime AVX2 feature check above.
             assert_eq!(unsafe { fir_predict_avx2(&ftable, &st) }, expected);
+        }
+    }
+}
+
+#[test]
+fn fir_predict_simd_matches_scalar_randomized() {
+    // Deterministic xorshift64 stream (no rand dependency in this crate).
+    // Exercises wrap-around accumulation across all 16 tables.
+    let mut state: u64 = 0x9e37_79b9_7f4a_7c15;
+    let mut next = move || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        state
+    };
+    let mut ftable = [[0i16; 256]; 16];
+    for table in ftable.iter_mut() {
+        for slot in table.iter_mut() {
+            *slot = next() as i16;
+        }
+    }
+    for _ in 0..256 {
+        let st = [next() as u32, next() as u32, next() as u32, next() as u32];
+        let expected = fir_predict_scalar(&ftable, &st);
+        assert_eq!(fir_predict(&ftable, &st, false), expected);
+        #[cfg(target_arch = "x86_64")]
+        assert_eq!(fir_predict_sse2(&ftable, &st), expected);
+        #[cfg(target_arch = "x86_64")]
+        if std::is_x86_feature_detected!("avx2") {
+            // SAFETY: guarded by the runtime AVX2 feature check above.
+            assert_eq!(fir_predict(&ftable, &st, true), expected);
         }
     }
 }
@@ -251,6 +287,52 @@ fn decode_frame_mch_sequence_bit_exact() {
         assert_eq!(n, dsd_len);
         assert_eq!(&out, dsd_ref, "mch frame {} mismatch", i + 1);
     }
+}
+
+#[test]
+fn decode_frame_error_downcasts_to_dst_error() {
+    use super::error::DstError;
+    let mut decoder = DstDecoder::new(2, DSD64_SAMPLE_RATE as usize).unwrap();
+    let mut out = vec![0u8; decoder.dsd_frame_bytes()];
+    let err = decoder.decode_frame(&[], &mut out).unwrap_err();
+    assert!(
+        err.downcast_ref::<DstError>().is_some(),
+        "expected typed DstError in chain, got: {err:?}"
+    );
+    // Failure must still emit deterministic DSD silence.
+    assert!(out.iter().all(|&b| b == 0x55));
+}
+
+#[test]
+fn decode_frame_accepts_uncompressed_dsd_escape() {
+    // dst_coded == 0 escape hatch: 1 bit code + 1 dummy + 6 zero stuffing
+    // bits (first byte 0x00), then raw DSD bytes. No fixture files needed.
+    let mut decoder = DstDecoder::new(2, DSD64_SAMPLE_RATE as usize).unwrap();
+    let len = decoder.dsd_frame_bytes();
+    let mut payload = vec![0u8; 1 + len];
+    for (i, b) in payload[1..].iter_mut().enumerate() {
+        *b = (i % 251) as u8;
+    }
+    let mut out = vec![0u8; len];
+    let n = decoder.decode_frame(&payload, &mut out).unwrap();
+    assert_eq!(n, len);
+    assert_eq!(out, payload[1..]);
+}
+
+#[test]
+fn decode_frame_rejects_nonzero_stuffing_pattern() {
+    use super::error::DstError;
+    let mut decoder = DstDecoder::new(2, DSD64_SAMPLE_RATE as usize).unwrap();
+    let len = decoder.dsd_frame_bytes();
+    let mut payload = vec![0u8; 1 + len];
+    payload[0] = 0x01; // nonzero stuffing bits after dst_coded == 0
+    let mut out = vec![0u8; len];
+    let err = decoder.decode_frame(&payload, &mut out).unwrap_err();
+    let dst_err = err
+        .downcast_ref::<DstError>()
+        .expect("expected typed DstError");
+    assert_eq!(*dst_err, DstError::InvalidStuffingPattern);
+    assert!(out.iter().all(|&b| b == 0x55));
 }
 
 #[test]

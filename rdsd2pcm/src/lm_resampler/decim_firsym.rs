@@ -28,7 +28,7 @@ impl DecimFIRSym {
         let half = if has_center { (len - 1) / 2 } else { len / 2 };
         // Ring capacity: next power of two >= len + decim (margin)
         let cap = (len + decim).next_power_of_two();
-        return Self {
+        Self {
             full,
             len,
             half,
@@ -40,7 +40,7 @@ impl DecimFIRSym {
             w: 0,
             count: 0,
             next_out_t: center,
-        };
+        }
     }
 
     /// Block processing: feed a slice of inputs and write produced outputs into `out`.

@@ -24,9 +24,12 @@ use super::consts::fixup_samples;
 use super::decode::decode_dsd_into;
 use super::dsd_scratch::DsdScratch;
 use super::expand::expand_false_stereo;
+use super::expand::expand_matroska_packet;
 use super::make::make_codec_params;
 use super::misc::dsd_crc;
+use super::parse::parse_channel_info;
 use super::parse::parse_decorr_samples;
+use super::parse::parse_decorr_weights;
 use super::parse::parse_dsd_info;
 use super::parse::parse_hybrid_profile;
 use super::parse::parse_shaping_info;
@@ -438,4 +441,29 @@ fn wavpack_hybrid_correction_reconstructs_joint_stereo() {
         apply_hybrid_correction(&residuals, HYBRID_FLAG | JOINT_STEREO, 1, &[], None).unwrap(),
         vec![9, -3]
     );
+}
+
+#[test]
+fn wavpack_decorr_weights_rejects_odd_length_stereo_data() {
+    let mut passes = vec![DecorrPass::default(); 2];
+    assert!(parse_decorr_weights(&[1, 2, 3], 0, &mut passes).is_err());
+}
+
+#[test]
+fn wavpack_decorr_weights_rejects_more_terms_than_passes() {
+    let mut passes = vec![DecorrPass::default(); 1];
+    assert!(parse_decorr_weights(&[1, 2], MONO_FLAG, &mut passes).is_err());
+}
+
+#[test]
+fn wavpack_channel_info_rejects_empty_and_oversized() {
+    assert!(parse_channel_info(&[]).is_err());
+    assert!(parse_channel_info(&[0u8; 8]).is_err());
+}
+
+#[test]
+fn wavpack_matroska_expansion_rejects_empty_and_truncated() {
+    assert!(expand_matroska_packet(&[], 0x410).is_err());
+    assert!(expand_matroska_packet(&[0u8; 4], 0x410).is_err());
+    assert!(expand_matroska_packet(&[0u8; 8], 0x100).is_err());
 }

@@ -25,8 +25,21 @@ pub const CODEC_ID_DST: AudioCodecId = AudioCodecId::new(FourCc::new(*b"DST "));
 pub const DEFAULT_DST_PCM_RATE: u32 = 176_400;
 
 #[derive(Debug, Error)]
-#[error("DST-to-DSD decode failed: {0}")]
-pub struct DstDecodeError(String);
+#[error("DST-to-DSD decode failed: {message}")]
+pub struct DstDecodeError {
+    message: String,
+    #[source]
+    source: anyhow::Error,
+}
+
+impl DstDecodeError {
+    fn new(source: anyhow::Error) -> Self {
+        Self {
+            message: source.to_string(),
+            source,
+        }
+    }
+}
 
 /// Decoder for DST frames into packed channel-interleaved DSD bytes.
 pub struct DstDsdDecoder {
@@ -37,8 +50,7 @@ pub struct DstDsdDecoder {
 
 impl DstDsdDecoder {
     pub fn new(channel_count: usize, sample_rate: usize) -> Result<Self, DstDecodeError> {
-        let inner = DstDecoder::new(channel_count, sample_rate)
-            .map_err(|err| DstDecodeError(err.to_string()))?;
+        let inner = DstDecoder::new(channel_count, sample_rate).map_err(DstDecodeError::new)?;
         Ok(Self {
             inner,
             channel_count,
@@ -65,7 +77,7 @@ impl DstDsdDecoder {
     ) -> Result<usize, DstDecodeError> {
         self.inner
             .decode_frame(encoded, decoded)
-            .map_err(|err| DstDecodeError(err.to_string()))
+            .map_err(DstDecodeError::new)
     }
 }
 
@@ -166,6 +178,9 @@ impl DstAudioDecoder {
 impl AudioDecoder for DstAudioDecoder {
     fn reset(&mut self) {
         self.buffer.clear();
+        // Rebuild from the same parameters reset was constructed with, so
+        // re-init cannot fail in practice; if it ever does, keep the previous
+        // working state rather than swapping in a half-built decoder.
         if let Ok(decoder) =
             DstDsdDecoder::new(self.decoder.channel_count(), self.decoder.sample_rate())
         {
@@ -227,6 +242,9 @@ impl RegisterableAudioDecoder for DstAudioDecoder {
     }
 }
 
+/// DST (post-expansion DSD)-to-PCM rate mapping; same grid as the DSD bridge:
+/// DSD64/128/256 -> 176.4kHz, DSD512 -> 352.8kHz, anything else falls back to
+/// the SACD default instead of erroring.
 fn default_output_sample_rate(input_sample_rate: u32) -> u32 {
     match input_sample_rate {
         2_822_400 => DEFAULT_DST_PCM_RATE,
@@ -268,5 +286,24 @@ mod tests {
         ));
         assert_eq!(decoder.codec_params().sample_rate, Some(176_400));
         assert_eq!(decoder.codec_info().short_name, "dst");
+    }
+
+    #[test]
+    fn dst_decode_error_preserves_source_chain() {
+        use std::error::Error as _;
+        let err = match DstDsdDecoder::new(0, 2_822_400) {
+            Ok(_) => panic!("expected channel-count rejection"),
+            Err(err) => err,
+        };
+        assert!(
+            err.source().is_some(),
+            "DstDecodeError must preserve its anyhow source"
+        );
+        assert!(!err.to_string().is_empty());
+
+        let mut decoder = DstDsdDecoder::new(2, 2_822_400).unwrap();
+        let mut out = vec![0u8; decoder.dsd_frame_bytes()];
+        let err = decoder.decode_frame(&[], &mut out).unwrap_err();
+        assert!(err.source().is_some());
     }
 }

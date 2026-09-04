@@ -118,14 +118,14 @@ where
         w.write_all(&format_tag.to_le_bytes())?;
         w.write_all(&(channels as u16).to_le_bytes())?;
         w.write_all(&self.sample_rate.to_le_bytes())?;
-        let byte_rate = self.sample_rate as u32 * block_align as u32;
+        let byte_rate = self.sample_rate * block_align as u32;
         w.write_all(&byte_rate.to_le_bytes())?;
         w.write_all(&(block_align as u16).to_le_bytes())?;
         w.write_all(&(self.bit_depth as u16).to_le_bytes())?;
 
         // data chunk
         w.write_all(b"data")?;
-        w.write_all(&(data_size as u32).to_le_bytes())?;
+        w.write_all(&data_size.to_le_bytes())?;
 
         // Stream samples in blocks to reduce temporary allocation
         // Choose a frame block size that stays cache friendly
@@ -369,7 +369,7 @@ where
         w.write_all(&extended)?;
         w.write_all(&comp_type)?;
         w.write_all(&comp_name_bytes)?;
-        if comm_size % 2 != 0 {
+        if !comm_size.is_multiple_of(2) {
             w.write_all(&[0u8])?;
         }
 
@@ -521,12 +521,7 @@ where
                 channels.try_into().unwrap(),
                 Some(total_pcm_bytes),
             )
-            .map_err(|e| {
-                io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("FLAC create: {e}"),
-                )
-            })?;
+            .map_err(|e| io::Error::other(format!("FLAC create: {e}")))?;
 
         const FRAME_BLOCK: usize = 16_384;
         let mut buf: Vec<u8> =
@@ -566,10 +561,7 @@ where
         }
 
         flac.finalize().map_err(|e| {
-            io::Error::new(
-                io::ErrorKind::Other,
-                format!("FLAC finalize: {e}"),
-            )
+            io::Error::other(format!("FLAC finalize: {e}"))
         })?;
         Ok(())
     }

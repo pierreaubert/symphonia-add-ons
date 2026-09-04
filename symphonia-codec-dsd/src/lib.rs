@@ -24,8 +24,21 @@ pub const CODEC_ID_DSD: AudioCodecId = AudioCodecId::new(FourCc::new(*b"DSD "));
 pub const DEFAULT_DSD64_PCM_RATE: u32 = 176_400;
 
 #[derive(Debug, Error)]
-#[error("DSD-to-PCM decode failed: {0}")]
-pub struct DsdDecodeError(String);
+#[error("DSD-to-PCM decode failed: {message}")]
+pub struct DsdDecodeError {
+    message: String,
+    #[source]
+    source: rdsd2pcm::DsdPcmError,
+}
+
+impl DsdDecodeError {
+    fn new(source: rdsd2pcm::DsdPcmError) -> Self {
+        Self {
+            message: source.to_string(),
+            source,
+        }
+    }
+}
 
 pub fn register_decoders(registry: &mut CodecRegistry) {
     registry.register_audio_decoder::<DsdPcmAudioDecoder>();
@@ -60,7 +73,7 @@ impl DsdPcmAudioDecoder {
             channels: channel_count,
             ..DsdPcmOptions::sacd(channel_count)
         })
-        .map_err(|err| DsdDecodeError(err.to_string()))
+        .map_err(DsdDecodeError::new)
         .map_err(|_| SymphoniaError::DecodeError("dsd: decoder initialization failed"))?;
 
         let capacity = converter.max_output_frames(
@@ -164,6 +177,16 @@ impl RegisterableAudioDecoder for DsdPcmAudioDecoder {
     }
 }
 
+/// DSD-to-PCM rate mapping (output = DSD input decimated to the filter's
+/// supported PCM grid):
+///
+/// | input     | output  | decim |
+/// |-----------|---------|-------|
+/// | DSD64     | 176.4k  | /16   |
+/// | DSD128    | 176.4k  | /32   |
+/// | DSD256    | 176.4k  | /64   |
+/// | DSD512    | 352.8k  | /64   |
+/// | other     | 176.4k  | (SACD default; unknown rates are not rejected) |
 fn default_output_sample_rate(input_sample_rate: u32) -> u32 {
     match input_sample_rate {
         2_822_400 => DEFAULT_DSD64_PCM_RATE,
@@ -207,6 +230,14 @@ mod tests {
             decoder.codec_params().sample_format,
             Some(SampleFormat::F32)
         ));
+    }
+
+    #[test]
+    fn dsd_decode_error_preserves_source_chain() {
+        use std::error::Error as _;
+        let err = DsdDecodeError::new(rdsd2pcm::DsdPcmError::InvalidChannelCount);
+        assert!(err.source().is_some());
+        assert!(err.to_string().contains("DSD-to-PCM"));
     }
 
     #[test]

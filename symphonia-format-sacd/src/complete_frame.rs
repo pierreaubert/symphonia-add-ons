@@ -27,12 +27,8 @@ pub(super) fn process_audio_sector(
     let dst_encoded = (header & 0x01) != 0;
     let frame_info_count = (header >> 2) & 0x07;
     let packet_info_count = (header >> 5) & 0x07;
-
-    if packet_info_count > 7 {
-        return Err(SacdError::CorruptTrackTable(
-            "audio sector has too many packets",
-        ));
-    }
+    // Note: both counts are 3-bit fields (0..=7), so no range check applies
+    // here; truncated tables are caught by the cursor-bounds checks below.
 
     let mut cursor = 1usize;
     let mut packet_infos = Vec::with_capacity(packet_info_count as usize);

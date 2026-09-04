@@ -106,7 +106,7 @@ impl ConversionContext {
                 resamplers.push(LMResampler::new(
                     self.upsample_ratio,
                     self.decim_ratio,
-                    self.pcm_writer.rate() as u32,
+                    self.pcm_writer.rate(),
                 )?);
             }
             self.eq_lm_resamplers = Some(resamplers);
@@ -179,7 +179,8 @@ impl ConversionContext {
     /// Only check peak level without writing output file
     /// * `cancel_flag` - atomic flag to signal cancellation
     /// * `sender` - optional progress update sender
-    /// returns peak level in dBFS
+    ///
+    /// Returns peak level in dBFS.
     pub fn check_level(
         &mut self,
         cancel_flag: &AtomicBool,
@@ -210,9 +211,10 @@ impl ConversionContext {
                     .into());
             }
             let mut samples_used_per_chan = 0usize;
-            for chan in 0..channels_num {
-                samples_used_per_chan =
-                    self.process_channel(chan, &chan_bufs[chan])?;
+            for (chan, buf) in
+                chan_bufs.iter().take(channels_num).enumerate()
+            {
+                samples_used_per_chan = self.process_channel(chan, buf)?;
 
                 // Scan peak from the samples produced for this channel.
                 // Note: `process_channel` writes into `pcm_writer.float_data`.
@@ -296,9 +298,10 @@ impl ConversionContext {
                     .into());
             }
             let mut samples_used_per_chan = 0usize;
-            for chan in 0..channels_num {
-                samples_used_per_chan =
-                    self.process_channel(chan, &chan_bufs[chan])?;
+            for (chan, buf) in
+                chan_bufs.iter().take(channels_num).enumerate()
+            {
+                samples_used_per_chan = self.process_channel(chan, buf)?;
                 self.pcm_writer
                     .write_to_buffer(samples_used_per_chan, chan);
             }
@@ -351,9 +354,9 @@ impl ConversionContext {
                 }
             }
         }
-        return samples_used_per_chan
+        samples_used_per_chan
             * self.pcm_writer.channels_num()
-            * self.pcm_writer.bytes_per_sample();
+            * self.pcm_writer.bytes_per_sample()
     }
 
     // Unified per-channel processing: handles both LM (rational) and integer paths.
@@ -367,19 +370,19 @@ impl ConversionContext {
         if let Some(resamps) = self.eq_lm_resamplers.as_mut() {
             // LM path: use rational resampler, honor actual produced count
             let rs = &mut resamps[chan];
-            return Ok(rs.process_bytes_lm(
-                &chan_bytes,
+            Ok(rs.process_bytes_lm(
+                chan_bytes,
                 self.pcm_writer.float_data_mut(),
-            ));
+            ))
         } else if let Some(ref mut v) = self.precalc_decims {
             // Integer path: use precalc decimator; conventionally return the estimate
             let dec = &mut v[chan];
-            return Ok(dec.process_bytes(
-                &chan_bytes,
+            Ok(dec.process_bytes(
+                chan_bytes,
                 self.pcm_writer.float_data_mut(),
-            ));
+            ))
         } else {
-            return Err("No resampler or decimator initialized.".into());
+            Err("No resampler or decimator initialized.".into())
         }
     }
 
@@ -392,7 +395,7 @@ impl ConversionContext {
             _ => "out",
         };
         let suffix = if let Some((uscore, _dot)) =
-            self.abbrev_rate_pair(self.pcm_writer.rate() as u32)
+            self.abbrev_rate_pair(self.pcm_writer.rate())
         {
             format!("_{}", uscore)
         } else {
@@ -426,8 +429,8 @@ impl ConversionContext {
             filename.push(suffix);
         }
         filename.push(format!(".{}", ext));
-        let file_path = PathBuf::from(&filename);
-        file_path
+
+        PathBuf::from(&filename)
     }
 
     fn derive_output_dir(
@@ -534,14 +537,15 @@ impl ConversionContext {
         debug!("Derived output path: {}", out_path.display());
 
         match self.copy_artwork(parent, &out_dir) {
-            Ok((_, total)) if total == 0 => {
-                debug!("No artwork files to copy.");
-            }
             Ok((copied, total)) => {
-                debug!(
-                    "Copied {} artwork file(s) out of {}.",
-                    copied, total
-                );
+                if total == 0 {
+                    debug!("No artwork files to copy.");
+                } else {
+                    debug!(
+                        "Copied {} artwork file(s) out of {}.",
+                        copied, total
+                    );
+                }
             }
             Err(e) => {
                 warn!("Failed to copy artwork to output directory: {}", e);
@@ -574,14 +578,13 @@ impl ConversionContext {
     }
 
     fn append_album_suffix(&self, tag: &mut id3::Tag) {
-        if let Some(album) = tag.album() {
-            if let Some((_uscore, dot)) =
-                self.abbrev_rate_pair(self.pcm_writer.rate() as u32)
-            {
-                let mut new_album = String::from(album);
-                new_album.push_str(&format!(" [{}]", dot));
-                tag.set_album(new_album);
-            }
+        if let Some(album) = tag.album()
+            && let Some((_uscore, dot)) =
+                self.abbrev_rate_pair(self.pcm_writer.rate())
+        {
+            let mut new_album = String::from(album);
+            new_album.push_str(&format!(" [{}]", dot));
+            tag.set_album(new_album);
         }
     }
 
@@ -601,7 +604,7 @@ impl ConversionContext {
             352_800 => Some(("352_8K", "352.8K")),
             384_000 => Some(("384K", "384K")),
             705_600 => Some(("705_6K", "705.6K")),
-            1411_200 => Some(("1411_2K", "1411.2K")),
+            1_411_200 => Some(("1411_2K", "1411.2K")),
             _ => None,
         }
     }

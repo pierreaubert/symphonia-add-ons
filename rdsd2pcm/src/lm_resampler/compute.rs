@@ -58,8 +58,8 @@ pub fn compute_decim_and_upsample(
     } else {
         // Integer ratio attempt (fallback to 64)
         let base = DSD_64_RATE * (in_rate as u32);
-        if out_rate > 0 && base % (out_rate as u32) == 0 {
-            (base / (out_rate as u32)) as i32
+        if out_rate > 0 && base.is_multiple_of(out_rate) {
+            (base / out_rate) as i32
         } else {
             64
         }
@@ -74,24 +74,12 @@ pub fn compute_decim_and_upsample(
             20
         } else if in_rate == 2 {
             10
-        } else if in_rate == 4 {
-            5
         } else {
             5
         }
     } else if out_rate == 192_000 {
-        // 192k: DSD64->L10, DSD128->L5, DSD256->L5 (reuses L5 path)
-        if in_rate == 1 {
-            10
-        } else if in_rate == 2 {
-            5
-        } else if in_rate == 4 {
-            5
-        } else {
-            5
-        }
-    } else if out_rate == 96_000 {
-        5
+        // 192k: DSD64->L10, DSD128/DSD256->L5 (reuses L5 path)
+        if in_rate == 1 { 10 } else { 5 }
     } else {
         5
     };

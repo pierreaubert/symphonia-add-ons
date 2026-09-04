@@ -223,7 +223,7 @@ impl DsdPcmConverter {
         &mut self,
         input: &[u8],
     ) -> Result<&[Vec<f32>], DsdPcmError> {
-        if input.len() % self.opts.channels != 0 {
+        if !input.len().is_multiple_of(self.opts.channels) {
             return Err(DsdPcmError::InvalidInputLength);
         }
 
@@ -278,7 +278,7 @@ impl DsdPcmConverter {
         encoding: PcmOutputEncoding,
         output: &mut Vec<u8>,
     ) -> Result<usize, DsdPcmError> {
-        if input.len() % self.opts.channels != 0 {
+        if !input.len().is_multiple_of(self.opts.channels) {
             return Err(DsdPcmError::InvalidInputLength);
         }
 
@@ -342,7 +342,7 @@ impl DsdPcmConverter {
 
 fn dsd_rate_multiplier(sample_rate: u32) -> Result<i32, DsdPcmError> {
     let base = 2_822_400;
-    if sample_rate % base != 0 {
+    if !sample_rate.is_multiple_of(base) {
         return Err(DsdPcmError::UnsupportedInputRate(sample_rate));
     }
     let multiplier = sample_rate / base;
@@ -365,6 +365,27 @@ mod tests {
         assert_eq!(pcm[0].len(), 2352);
         assert_eq!(pcm[1].len(), 2352);
         assert!(pcm[0].iter().all(|sample| sample.is_finite()));
+    }
+
+    #[test]
+    fn repeated_conversions_are_bit_identical() {
+        // The Symphonia DSP path applies no dither, so fresh converters must
+        // agree bit-for-bit (file-path dither via `rand` is intentionally
+        // non-deterministic and lives behind `file-io`).
+        let input = (0..2 * 4704)
+            .map(|idx| (idx as u8).wrapping_mul(19))
+            .collect::<Vec<_>>();
+        let first = DsdPcmConverter::new(DsdPcmOptions::sacd(2))
+            .unwrap()
+            .convert_interleaved(&input)
+            .unwrap()
+            .to_vec();
+        let second = DsdPcmConverter::new(DsdPcmOptions::sacd(2))
+            .unwrap()
+            .convert_interleaved(&input)
+            .unwrap()
+            .to_vec();
+        assert_eq!(first, second);
     }
 
     #[test]
@@ -399,6 +420,11 @@ mod tests {
 
         assert_eq!(frames, planar[0].len());
         assert_eq!(bytes.len(), frames * 2 * size_of::<f32>());
+        // Byte-layout assertion is clearest indexed by frame/channel.
+        #[allow(
+            clippy::needless_range_loop,
+            reason = "byte-layout assertion reads clearest indexed by frame/channel"
+        )]
         for frame in 0..frames {
             for channel in 0..2 {
                 let offset = (frame * 2 + channel) * size_of::<f32>();
@@ -452,6 +478,11 @@ mod tests {
 
         assert_eq!(frames, planar[0].len());
         assert_eq!(bytes.len(), frames * 2 * size_of::<f32>());
+        // Byte-layout assertion is clearest indexed by frame/channel.
+        #[allow(
+            clippy::needless_range_loop,
+            reason = "byte-layout assertion reads clearest indexed by frame/channel"
+        )]
         for frame in 0..frames {
             for channel in 0..2 {
                 let offset = (frame * 2 + channel) * size_of::<f32>();

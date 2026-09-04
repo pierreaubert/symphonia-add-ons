@@ -82,7 +82,7 @@ where
                 .plane_pair_mut(channel_offset, channel_offset + 1)
                 .ok_or(Error::DecodeError("wavpack: invalid output channels"))?;
 
-            for (frame, lr) in samples.chunks_exact(2).enumerate().take(frames) {
+            for (frame, lr) in samples.as_chunks::<2>().0.iter().enumerate().take(frames) {
                 left[frame] = convert(lr[0]);
                 right[frame] = convert(lr[1]);
             }

@@ -57,9 +57,7 @@ impl LMResampler {
                         s1_scratch: Vec::new(),
                     });
                 }
-                return Err(
-                    "Unsupported 588: must be out_rate=96k and L=5".into(),
-                );
+                Err("Unsupported 588: must be out_rate=96k and L=5".into())
             }
             294 => {
                 // DSD256 -> 192k two‑stage path: (×5 -> /21) => 2.688 MHz -> /14 => 192k
@@ -88,7 +86,7 @@ impl LMResampler {
                     "Equiripple L/M path: L={} M=294 — (×L -> /14 -> /7 -> /3) [Stage2/3 direct].",
                     l
                 );
-                return Ok(Self {
+                Ok(Self {
                     // Stage 2 (decimator by 7)
                     stage2_decim: Some(DecimFIRSym::new_from_half(
                         &HTAPS_2MHZ_7TO1_EQ,
@@ -106,7 +104,7 @@ impl LMResampler {
                     )),
                     s2_scratch: Vec::new(),
                     s1_scratch: Vec::new(),
-                });
+                })
             }
             147 => {
                 // DSD128 -> 384k two‑stage path (×L -> /21) -> /7
@@ -186,7 +184,7 @@ impl LMResampler {
                     "Equiripple L/M path: L={} M=147 — (×L -> /7 -> /7 -> /3) [Stage2/3 direct] => 96K",
                     l
                 );
-                return Ok(Self {
+                Ok(Self {
                     stage1_poly: Some(Stage1Poly::new(
                         &HTAPS_DSDX5_7TO1_EQ[..],
                         l,
@@ -204,9 +202,9 @@ impl LMResampler {
                     )),
                     s2_scratch: Vec::new(),
                     s1_scratch: Vec::new(),
-                });
+                })
             }
-            _ => return Err("Unsupported L/M combination".into()),
+            _ => Err("Unsupported L/M combination".into()),
         }
     }
 
@@ -231,8 +229,7 @@ impl LMResampler {
         let mut i = 0usize; // byte cursor
 
         // Precompute an upper bound on stage1 outputs/byte to size chunks conservatively.
-        let y1_per_byte_ub =
-            ((8 * s1.l as usize) + (s1.m as usize) - 1) / (s1.m as usize);
+        let y1_per_byte_ub = (8 * s1.l as usize).div_ceil(s1.m as usize);
         let y1_per_byte_ub = y1_per_byte_ub.max(1);
 
         // Helper to emit stage1 outputs for a byte into s1_scratch
@@ -261,7 +258,7 @@ impl LMResampler {
             let mut take_bytes = if need_s1_out == 0 {
                 0
             } else {
-                (need_s1_out + y1_per_byte_ub - 1) / y1_per_byte_ub
+                need_s1_out.div_ceil(y1_per_byte_ub)
             };
             take_bytes = take_bytes.min(bytes.len() - i);
             if take_bytes == 0 {
@@ -344,8 +341,7 @@ impl LMResampler {
         let mut consumed_total = 0usize;
         let total_bytes = (bytes.len() - channel).div_ceil(channels);
         let mut pos = channel;
-        let y1_per_byte_ub =
-            ((8 * s1.l as usize) + (s1.m as usize) - 1) / (s1.m as usize);
+        let y1_per_byte_ub = (8 * s1.l as usize).div_ceil(s1.m as usize);
         let y1_per_byte_ub = y1_per_byte_ub.max(1);
 
         let push_byte =

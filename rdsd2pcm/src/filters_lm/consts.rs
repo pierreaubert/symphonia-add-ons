@@ -371,7 +371,7 @@ pub const HTAPS_576K_3TO1_EQ: [f64; 22] = [
  * 294:1 decimation.
  */
 #[allow(dead_code)]
-pub const HTAPS_DDRX5_294TO1_EQ: [f64; 3373] = [
+pub static HTAPS_DDRX5_294TO1_EQ: [f64; 3373] = [
     0.002086255528428,
     0.002086224181282,
     0.002086161487894,

@@ -80,7 +80,7 @@ impl PcmWriter {
             bits: 32,
             output: OutputType::Stdout,
             bytes_per_sample: 4,
-            channels_num: channels_num,
+            channels_num,
             rate: out_rate,
             peak_level: 0,
             scale_factor: upsample_ratio as f64,
@@ -98,6 +98,10 @@ impl PcmWriter {
         })
     }
 
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "legacy writer constructor threads output config; splitting it is separate work"
+    )]
     pub fn new(
         out_bits: usize,
         out_type: OutputType,
@@ -151,7 +155,7 @@ impl PcmWriter {
             bits: out_bits,
             output: out_type,
             bytes_per_sample,
-            channels_num: channels_num,
+            channels_num,
             rate: out_rate,
             peak_level: 0,
             scale_factor: 1.0,
@@ -367,7 +371,7 @@ impl PcmWriter {
 
         // TRCK -> TRACKNUMBER + TOTALTRACKS/TRACKTOTAL (parsed from "n/total")
         if let Some(n) = tag.track() {
-            vorbis.insert("TRACKNUMBER", &n.to_string());
+            vorbis.insert("TRACKNUMBER", n.to_string());
         }
         if let Some(n) = tag.total_tracks() {
             let s = n.to_string();
@@ -377,7 +381,7 @@ impl PcmWriter {
 
         // TPOS -> DISCNUMBER + TOTALDISCS/DISCTOTAL (parsed from "n/total")
         if let Some(n) = tag.disc() {
-            vorbis.insert("DISCNUMBER", &n.to_string());
+            vorbis.insert("DISCNUMBER", n.to_string());
         }
         if let Some(n) = tag.total_discs() {
             let s = n.to_string();
@@ -387,9 +391,9 @@ impl PcmWriter {
 
         // TDRC -> DATE (full ISO timestamp); fall back to TYER year
         if let Some(date) = tag.date_recorded() {
-            vorbis.insert("DATE", &date.to_string());
+            vorbis.insert("DATE", date.to_string());
         } else if let Some(year) = tag.year() {
-            vorbis.insert("DATE", &year.to_string());
+            vorbis.insert("DATE", year.to_string());
         }
 
         // TDOR -> ORIGINALDATE; fall back to TORY (ID3v2.3 equivalent)
@@ -408,17 +412,17 @@ impl PcmWriter {
         }
 
         // COMM -> COMMENT
-        if let Some(f) = tag.get("COMM") {
-            if let id3::Content::Comment(comm) = f.content() {
-                vorbis.insert("COMMENT", &comm.text);
-            }
+        if let Some(f) = tag.get("COMM")
+            && let id3::Content::Comment(comm) = f.content()
+        {
+            vorbis.insert("COMMENT", &comm.text);
         }
 
         // USLT -> LYRICS
-        if let Some(f) = tag.get("USLT") {
-            if let id3::Content::Lyrics(lyrics) = f.content() {
-                vorbis.insert("LYRICS", &lyrics.text);
-            }
+        if let Some(f) = tag.get("USLT")
+            && let id3::Content::Lyrics(lyrics) = f.content()
+        {
+            vorbis.insert("LYRICS", &lyrics.text);
         }
 
         // TIPL/IPLS -> role-based fields via ID3_TIPL_VORBIS_MAP
@@ -443,7 +447,7 @@ impl PcmWriter {
                 for item in &mc.items {
                     vorbis.insert(
                         "PERFORMER",
-                        &format!(
+                        format!(
                             "{} ({})",
                             item.involvee, item.involvement
                         ),
@@ -456,13 +460,10 @@ impl PcmWriter {
         for frame in tag.frames().filter(|f| f.id() == "UFID") {
             if let id3::Content::UniqueFileIdentifier(ufid) =
                 frame.content()
+                && ufid.owner_identifier == "http://musicbrainz.org"
+                && let Ok(mbid) = std::str::from_utf8(&ufid.identifier)
             {
-                if ufid.owner_identifier == "http://musicbrainz.org" {
-                    if let Ok(mbid) = std::str::from_utf8(&ufid.identifier)
-                    {
-                        vorbis.insert("MUSICBRAINZ_TRACKID", mbid);
-                    }
-                }
+                vorbis.insert("MUSICBRAINZ_TRACKID", mbid);
             }
         }
 
@@ -470,10 +471,10 @@ impl PcmWriter {
         for (frame_id, vorbis_name) in
             [("WCOP", "LICENSE"), ("WOAR", "WEBSITE")]
         {
-            if let Some(f) = tag.get(frame_id) {
-                if let id3::Content::Link(url) = f.content() {
-                    vorbis.insert(vorbis_name, url);
-                }
+            if let Some(f) = tag.get(frame_id)
+                && let id3::Content::Link(url) = f.content()
+            {
+                vorbis.insert(vorbis_name, url);
             }
         }
 
@@ -595,13 +596,13 @@ impl PcmWriter {
     #[inline(always)]
     pub fn quantize(&mut self, qin: &mut f64) -> i32 {
         let value = Self::my_round(*qin) as i32;
-        let peak = self.peak_level as i32;
+        let peak = self.peak_level;
         self.clamp_value(-peak, value, peak - 1)
     }
 
     #[inline(always)]
     fn clamp_value(&mut self, min: i32, value: i32, max: i32) -> i32 {
-        return if value < min {
+        if value < min {
             self.update_clip_stats(true, false);
             min
         } else if value > max {
@@ -610,7 +611,7 @@ impl PcmWriter {
         } else {
             self.update_clip_stats(false, false);
             value
-        };
+        }
     }
 
     #[inline(always)]

@@ -101,10 +101,20 @@ pub(super) fn parse_decorr_weights(
     let mut weights = data.iter().copied();
 
     for pass in passes.iter_mut().rev().take(term_count) {
-        pass.weight_a = restore_weight(weights.next().unwrap() as i8);
+        let w = weights
+            .next()
+            .ok_or(symphonia_core::errors::Error::DecodeError(
+                "wavpack: truncated decorrelation weights",
+            ))?;
+        pass.weight_a = restore_weight(w as i8);
 
         if !is_mono(flags) {
-            pass.weight_b = restore_weight(weights.next().unwrap() as i8);
+            let w = weights
+                .next()
+                .ok_or(symphonia_core::errors::Error::DecodeError(
+                    "wavpack: truncated decorrelation weights",
+                ))?;
+            pass.weight_b = restore_weight(w as i8);
         }
     }
 

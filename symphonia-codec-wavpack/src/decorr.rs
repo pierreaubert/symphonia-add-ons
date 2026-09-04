@@ -152,7 +152,7 @@ pub(super) fn decorr_mono_pass(pass: &mut DecorrPass, samples: &mut [i32]) {
 pub(super) fn decorr_stereo_pass(pass: &mut DecorrPass, samples: &mut [i32]) {
     match pass.term {
         17 => {
-            for frame in samples.chunks_exact_mut(2) {
+            for frame in samples.as_chunks_mut::<2>().0 {
                 let sam = predict_term_17(pass.samples_a[0], pass.samples_a[1]);
                 pass.samples_a[1] = pass.samples_a[0];
                 let residual = frame[0];
@@ -169,7 +169,7 @@ pub(super) fn decorr_stereo_pass(pass: &mut DecorrPass, samples: &mut [i32]) {
             }
         }
         18 => {
-            for frame in samples.chunks_exact_mut(2) {
+            for frame in samples.as_chunks_mut::<2>().0 {
                 let sam = predict_term_18_stereo(pass.samples_a[0], pass.samples_a[1]);
                 pass.samples_a[1] = pass.samples_a[0];
                 let residual = frame[0];
@@ -186,7 +186,7 @@ pub(super) fn decorr_stereo_pass(pass: &mut DecorrPass, samples: &mut [i32]) {
             }
         }
         -1 => {
-            for frame in samples.chunks_exact_mut(2) {
+            for frame in samples.as_chunks_mut::<2>().0 {
                 let sam = frame[0].wrapping_add(apply_weight(pass.weight_a, pass.samples_a[0]));
                 update_weight_clip(&mut pass.weight_a, pass.delta, pass.samples_a[0], frame[0]);
                 frame[0] = sam;
@@ -196,7 +196,7 @@ pub(super) fn decorr_stereo_pass(pass: &mut DecorrPass, samples: &mut [i32]) {
             }
         }
         -2 => {
-            for frame in samples.chunks_exact_mut(2) {
+            for frame in samples.as_chunks_mut::<2>().0 {
                 let sam = frame[1].wrapping_add(apply_weight(pass.weight_b, pass.samples_b[0]));
                 update_weight_clip(&mut pass.weight_b, pass.delta, pass.samples_b[0], frame[1]);
                 frame[1] = sam;
@@ -206,7 +206,7 @@ pub(super) fn decorr_stereo_pass(pass: &mut DecorrPass, samples: &mut [i32]) {
             }
         }
         -3 => {
-            for frame in samples.chunks_exact_mut(2) {
+            for frame in samples.as_chunks_mut::<2>().0 {
                 let sam_a = frame[0].wrapping_add(apply_weight(pass.weight_a, pass.samples_a[0]));
                 update_weight_clip(&mut pass.weight_a, pass.delta, pass.samples_a[0], frame[0]);
                 let sam_b = frame[1].wrapping_add(apply_weight(pass.weight_b, pass.samples_b[0]));
@@ -221,7 +221,7 @@ pub(super) fn decorr_stereo_pass(pass: &mut DecorrPass, samples: &mut [i32]) {
             let mut m = 0;
             let mut k = pass.term as usize & (MAX_TERM_USIZE - 1);
 
-            for frame in samples.chunks_exact_mut(2) {
+            for frame in samples.as_chunks_mut::<2>().0 {
                 let sam = pass.samples_a[m];
                 let residual = frame[0];
                 pass.samples_a[k] = apply_weight(pass.weight_a, sam).wrapping_add(residual);

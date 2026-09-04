@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Breaking:** `DstDecodeError` is now a struct carrying its `anyhow` source
+  instead of a string-only tuple, so DST failure chains (down to `DstError`)
+  survive. Rebuild against the new shape instead of constructing the old
+  tuple form.
+- Documented the DST-to-PCM output rate mapping and the `reset()` keep-old
+  state behavior.
+- Added an error source-chain test.
+
 ## [0.1.1] - 2026-06-09
 
 ### Added

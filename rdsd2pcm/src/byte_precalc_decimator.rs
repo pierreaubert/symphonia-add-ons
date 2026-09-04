@@ -72,7 +72,7 @@ pub struct BytePrecalcDecimator {
 impl BytePrecalcDecimator {
     /// Build from right-half taps (second_half_taps) and integer decimation factor.
     pub fn new(second_half_taps: &[f64], decim: u32) -> Option<Self> {
-        if decim % 8 != 0 {
+        if !decim.is_multiple_of(8) {
             return None;
         } // requires byte alignment
         let half = second_half_taps.len();
@@ -80,7 +80,7 @@ impl BytePrecalcDecimator {
             return None;
         }
         // Number of 8-bit windows covering half the filter
-        let num_tables = (half + 7) / 8;
+        let num_tables = half.div_ceil(8);
 
         let dec = Self {
             tables: (0..num_tables)

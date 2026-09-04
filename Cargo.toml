@@ -32,12 +32,12 @@ symphonia-metadata = "0.6"
 tempfile = "3.23"
 thiserror = "2.0.17"
 
-dst-decoder = { path = "dst-decoder", version = "0.1.1" }
-rdsd2pcm = { path = "rdsd2pcm", version = "0.3.0" }
-symphonia-codec-dsd = { path = "symphonia-codec-dsd", version = "0.1.1" }
-symphonia-codec-dst = { path = "symphonia-codec-dst", version = "0.1.1" }
-symphonia-codec-wavpack = { path = "symphonia-codec-wavpack", version = "0.1.0" }
-symphonia-format-sacd = { path = "symphonia-format-sacd", version = "0.1.1" }
+dst-decoder = { path = "dst-decoder", version = "0.1.2" }
+rdsd2pcm = { path = "rdsd2pcm", version = "0.4.0" }
+symphonia-codec-dsd = { path = "symphonia-codec-dsd", version = "0.2.0" }
+symphonia-codec-dst = { path = "symphonia-codec-dst", version = "0.2.0" }
+symphonia-codec-wavpack = { path = "symphonia-codec-wavpack", version = "0.1.1" }
+symphonia-format-sacd = { path = "symphonia-format-sacd", version = "0.1.2" }
 
 [workspace.lints.rust]
 ambiguous_negative_literals = "warn"

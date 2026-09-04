@@ -29,8 +29,7 @@ impl AudioSample for f32 {
 impl AudioSample for i32 {
     // For 16-bit output, pipeline already scales to ±32767; clamp and pass through.
     fn to_i16(self) -> i16 {
-        let v = self.max(-32768).min(32767);
-        v as i16
+        self.clamp(-32768, 32767) as i16
     }
     fn to_i24(self) -> i32 {
         self

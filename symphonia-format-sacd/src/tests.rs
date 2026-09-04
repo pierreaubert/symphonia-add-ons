@@ -128,6 +128,74 @@ fn symphonia_probe_reads_first_packet() {
 }
 
 #[test]
+fn seek_rewinds_to_start_and_rejects_nonzero_targets() {
+    use symphonia_core::formats::{SeekMode, SeekTo};
+    let image = fixture(false, false);
+    let source = TestSource::new(image);
+    let mss = MediaSourceStream::new(Box::new(source), MediaSourceStreamOptions::default());
+    let mut probe = Probe::new();
+    register_all(&mut probe);
+    let mut hint = Hint::new();
+    hint.with_extension("iso");
+    let mut format = probe
+        .probe(&hint, mss, Default::default(), Default::default())
+        .unwrap();
+    let first = format.next_packet().unwrap().unwrap();
+    assert!(format.next_packet().unwrap().is_none());
+    let rejected = format.seek(
+        SeekMode::Accurate,
+        SeekTo::Timestamp {
+            ts: Timestamp::new(1),
+            track_id: first.track_id,
+        },
+    );
+    assert!(rejected.is_err());
+    let seeked = format
+        .seek(
+            SeekMode::Accurate,
+            SeekTo::Timestamp {
+                ts: Timestamp::ZERO,
+                track_id: first.track_id,
+            },
+        )
+        .unwrap();
+    assert_eq!(seeked.actual_ts, Timestamp::ZERO);
+    let replay = format.next_packet().unwrap().unwrap();
+    assert_eq!(replay.data.len(), first.data.len());
+    assert_eq!(replay.data, first.data);
+}
+
+#[test]
+fn probe_scores_sacd_magic_and_rejects_other_data() {
+    use super::sacd_format_reader::SacdFormatReader;
+    use symphonia_core::formats::probe::Scoreable;
+    use symphonia_core::io::ScopedStream;
+    // Score runs positioned at a `b"SACD"` marker match: emulate that by
+    // skipping to the master TOC before scoring.
+    use symphonia_core::io::ReadBytes;
+    let image = fixture(false, false);
+    let source = TestSource::new(image);
+    let mut mss = MediaSourceStream::new(Box::new(source), MediaSourceStreamOptions::default());
+    mss.ignore_bytes(u64::from(START_OF_MASTER_TOC) * u64::from(SACD_LSN_SIZE as u32))
+        .unwrap();
+    let scoped = ScopedStream::new(&mut mss, 8);
+    assert!(matches!(
+        SacdFormatReader::score(scoped).unwrap(),
+        symphonia_core::formats::probe::Score::Supported(_)
+    ));
+    let junk = vec![0u8; 2048 * 520];
+    let source = TestSource::new(junk);
+    let mut mss = MediaSourceStream::new(Box::new(source), MediaSourceStreamOptions::default());
+    mss.ignore_bytes(u64::from(START_OF_MASTER_TOC) * u64::from(SACD_LSN_SIZE as u32))
+        .unwrap();
+    let scoped = ScopedStream::new(&mut mss, 8);
+    assert!(matches!(
+        SacdFormatReader::score(scoped).unwrap(),
+        symphonia_core::formats::probe::Score::Unsupported
+    ));
+}
+
+#[test]
 fn symphonia_decoder_converts_uncompressed_sacd_packet_to_pcm() {
     let image = fixture(false, false);
     let source = TestSource::new(image);
@@ -157,6 +225,31 @@ fn symphonia_decoder_converts_uncompressed_sacd_packet_to_pcm() {
     assert_eq!(buffer.spec().rate(), 176_400);
     assert_eq!(buffer.spec().channels().count(), 2);
     assert_eq!(buffer.frames(), 2352);
+}
+
+#[test]
+fn metadata_log_exposes_album_title() {
+    let image = fixture(false, false);
+    let source = TestSource::new(image);
+    let mss = MediaSourceStream::new(Box::new(source), MediaSourceStreamOptions::default());
+    let mut probe = Probe::new();
+    register_all(&mut probe);
+    let mut hint = Hint::new();
+    hint.with_extension("iso");
+    let mut format = probe
+        .probe(&hint, mss, Default::default(), Default::default())
+        .unwrap();
+    let revision = format.metadata().current().cloned();
+    let revision = revision.expect("metadata revision");
+    assert!(
+        revision
+            .media
+            .tags
+            .iter()
+            .any(|tag| format!("{tag:?}").contains("Test Album")),
+        "expected album title tag, got: {:?}",
+        revision.media.tags
+    );
 }
 
 #[test]
@@ -284,6 +377,10 @@ fn write_master_text(image: &mut [u8]) {
     image[off + 80..off + 91].copy_from_slice(b"Test Artist");
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "synthetic ISO fixture builder threads raw TOC fields"
+)]
 fn write_area_toc(
     image: &mut [u8],
     lsn: u32,

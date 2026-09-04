@@ -45,9 +45,9 @@ impl Stage1Poly {
         let n = (right_half.len() * 2) as u64;
         let delay_high = (n - 1) / 2; // (N-1)/2
         // Max taps per phase is ceil(n / l)
-        let max_len = ((n as usize) + l as usize - 1) / l as usize;
+        let max_len = (n as usize).div_ceil(l as usize);
         let cap = max_len.next_power_of_two().max(128);
-        let input_delay = (delay_high + (l as u64 - 1)) / l as u64; // used only in Accum. Always use f64 LUTs
+        let input_delay = delay_high.div_ceil(l as u64); // used only in Accum. Always use f64 LUTs
         let lut_f64: Option<Arc<Vec<Vec<[f64; 256]>>>> =
             Some(get_or_build_stage1_lut(right_half, l));
         // Determine maximum groups across phases to size the byte ring
@@ -61,7 +61,7 @@ impl Stage1Poly {
         let me = Self {
             l,
             m,
-            ring_bits: vec![0u64; (cap + 63) / 64],
+            ring_bits: vec![0u64; cap.div_ceil(64)],
             bits_mask: cap - 1,
             wbits: 0,
             mode: if m == 21 {
@@ -148,7 +148,7 @@ impl Stage1Poly {
         self.wbits = (self.wbits + 1) & self.bits_mask;
         // Update rolling byte (newest-first in LSB) and write to byte ring
         let b = if is_pos { 1u8 } else { 0u8 };
-        self.rolling_byte = ((self.rolling_byte << 1) & 0xFF) | b;
+        self.rolling_byte = (self.rolling_byte << 1) | b;
         self.byte_ring[self.wbyte] = self.rolling_byte;
         self.wbyte = (self.wbyte + 1) & self.byte_mask;
     }
@@ -264,10 +264,8 @@ impl Stage1Poly {
             // Non-unrolled inner loop
             let mut k = 0usize;
             while k < this_chunk {
-                let idx = bidx
-                    .wrapping_add(capb)
-                    .wrapping_sub((k as usize) << 3)
-                    & mask;
+                let idx =
+                    bidx.wrapping_add(capb).wrapping_sub(k << 3) & mask;
                 let byte = self.byte_ring[idx] as usize;
                 sum += phase_lut[g + k][byte];
                 k += 1;

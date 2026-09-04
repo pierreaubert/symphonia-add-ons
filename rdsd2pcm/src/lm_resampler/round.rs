@@ -8,7 +8,7 @@ pub(super) fn round_up_to_multiple(x: usize, a: usize) -> usize {
     if x == 0 {
         return 0;
     }
-    ((x + a - 1) / a) * a
+    x.div_ceil(a) * a
 }
 
 #[inline]

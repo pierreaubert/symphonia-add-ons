@@ -66,7 +66,9 @@ pub(super) fn expand_matroska_packet(data: &[u8], version: u16) -> Result<Vec<u8
             return decode_error("wavpack: matroska block overruns packet");
         }
 
-        let block_samples = block_samples.unwrap();
+        let block_samples = block_samples.ok_or(symphonia_core::errors::Error::DecodeError(
+            "wavpack: missing block samples",
+        ))?;
         let ck_size = WAVPACK_MIN_CK_SIZE + block_size as u32;
 
         out.extend_from_slice(&WAVPACK_MARKER);

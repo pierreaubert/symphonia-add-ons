@@ -5,7 +5,7 @@ use symphonia_core::audio::sample::SampleFormat;
 use symphonia_core::errors::{Result, decode_error};
 
 pub(super) fn undo_joint_stereo(samples: &mut [i32]) {
-    for frame in samples.chunks_exact_mut(2) {
+    for frame in samples.as_chunks_mut::<2>().0 {
         frame[1] -= frame[0] >> 1;
         frame[0] += frame[1];
     }

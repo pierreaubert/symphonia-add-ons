@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added a `file-io` feature (enabled by default) gating the file-conversion
+  API (`Rdsd2Pcm`, writers, dither, file discovery, metadata). The DSP core
+  (`DsdPcmConverter`, `DsdPcmOptions`) now builds without `rand`, `flac-codec`,
+  or `id3`.
+- Added a bit-identical repeat-conversion test pinning DSP determinism.
+
+### Changed
+- `is_dsd_file` now takes `&Path` instead of `&PathBuf` (call sites passing
+  `&PathBuf` keep working through deref coercion).
+- Removed the blanket `#![allow(clippy::all)]`; the crate is clean under
+  `cargo clippy -- -D warnings` with narrowly scoped allows for the imported
+  filter tables and legacy constructors.
+- Removed the unused direct `dsf-meta`/`dff-meta` dependencies (still used
+  through `dsd-reader`).
+
 ## [0.3.0] - 2026-06-09
 
 ### Added

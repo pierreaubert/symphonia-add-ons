@@ -103,7 +103,7 @@ pub(super) fn apply_hybrid_correction_into(
             ));
         }
     } else {
-        for frame in residuals.chunks_exact(2) {
+        for frame in residuals.as_chunks::<2>().0 {
             let mut left = frame[0].value;
             let mut right = frame[1].value;
             let corrections = [frame[0].correction, frame[1].correction];
