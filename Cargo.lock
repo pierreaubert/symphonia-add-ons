@@ -162,9 +162,9 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "flac-codec"
-version = "1.3.2"
+version = "1.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3a62dbcc8c85ee094d1380035e631f9c236fb610bd49d3eaa41ad839ff2e2cc"
+checksum = "59c7588004ca8c0d0c6fce15a02c0bdca964d94a83a73e45680a6874d551d405"
 dependencies = [
  "arrayvec",
  "bitstream-io",
