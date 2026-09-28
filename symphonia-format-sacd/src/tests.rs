@@ -19,9 +19,9 @@ pub use symphonia_codec_dst::CODEC_ID_DST;
 use symphonia_core::audio::Channels;
 use symphonia_core::codecs::CodecParameters;
 use symphonia_core::codecs::registry::CodecRegistry;
-use symphonia_core::formats::prelude::*;
 use symphonia_core::formats::probe::Probe;
 use symphonia_core::io::MediaSourceStream;
+use symphonia_core::units::{Duration, Timestamp};
 
 use std::io::Cursor;
 

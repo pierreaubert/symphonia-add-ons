@@ -118,7 +118,7 @@ impl DsdFile {
             })
         } else if file_format == DsdFileFormat::Dsdiff {
             use dff_meta::DffFile;
-            use dff_meta::model::*;
+            use dff_meta::model::Error;
             let file_path = Path::new(&path);
             let dff_file = match DffFile::open(file_path) {
                 Ok(dff) => dff,

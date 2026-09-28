@@ -2,8 +2,9 @@
 
 use std::num::NonZero;
 use symphonia_core::common::FourCc;
-use symphonia_core::formats::prelude::*;
+use symphonia_core::formats::{FormatId, FormatInfo};
 use symphonia_core::meta::{MetadataId, MetadataInfo};
+use symphonia_core::units::TimeBase;
 
 pub const SACD_LSN_SIZE: usize = 2048;
 

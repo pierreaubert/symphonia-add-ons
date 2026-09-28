@@ -80,6 +80,7 @@ unnecessary_safety_comment = "warn"
 unnecessary_safety_doc = "warn"
 unneeded_field_pattern = "warn"
 unused_result_ok = "warn"
+wildcard_imports = "warn"
 
 literal_string_with_formatting_args = "allow"
 multiple_crate_versions = "allow"

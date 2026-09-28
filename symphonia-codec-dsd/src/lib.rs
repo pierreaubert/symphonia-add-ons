@@ -199,13 +199,14 @@ fn default_output_sample_rate(input_sample_rate: u32) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use symphonia_core::audio::{Audio, Channels};
-    use symphonia_core::codecs::audio::AudioDecoderOptions;
+    use symphonia_core::audio::sample::SampleFormat;
+    use symphonia_core::audio::{Audio, Channels, GenericAudioBufferRef};
+    use symphonia_core::codecs::audio::{AudioCodecParameters, AudioDecoder, AudioDecoderOptions};
     use symphonia_core::codecs::registry::CodecRegistry;
     use symphonia_core::packet::Packet;
     use symphonia_core::units::{Duration, Timestamp};
 
-    use super::*;
+    use super::{CODEC_ID_DSD, DsdDecodeError, DsdPcmAudioDecoder, register_decoders};
 
     #[test]
     fn registry_constructs_dsd_decoder() {

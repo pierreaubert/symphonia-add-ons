@@ -14,5 +14,7 @@ mod segment;
 mod tests;
 mod types;
 
-pub use dst_decoder::*;
-pub use error::*;
+#[doc(inline)]
+pub use dst_decoder::DstDecoder;
+#[doc(inline)]
+pub use error::DstError;

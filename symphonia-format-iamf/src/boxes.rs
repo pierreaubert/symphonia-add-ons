@@ -20,6 +20,8 @@ pub const MAX_BOX_PAYLOAD: u64 = 64 * 1024 * 1024;
 pub struct BoxHeader {
     /// `FourCC` box type.
     pub typ: [u8; 4],
+    /// Offset of the first box header byte in the stream.
+    pub start: u64,
     /// Offset of the first payload byte in the stream.
     pub payload_offset: u64,
     /// Payload length in bytes (`u64::MAX` means "to end of file").
@@ -55,6 +57,7 @@ impl BoxHeader {
             r.seek(SeekFrom::Start(start + 8))?;
             return Ok(Some(Self {
                 typ,
+                start,
                 payload_offset: start + 8,
                 payload_len: end.saturating_sub(start + 8),
                 end_offset: Some(end),
@@ -79,6 +82,7 @@ impl BoxHeader {
         }
         Ok(Some(Self {
             typ,
+            start,
             payload_offset: start + header_len,
             payload_len: size - header_len,
             end_offset: Some(start + size),
@@ -226,6 +230,19 @@ impl<'a> SliceReader<'a> {
     pub fn u32_be(&mut self) -> Result<u32, IamfMp4Error> {
         let b = self.take(4, "truncated u32")?;
         Ok(u32::from_be_bytes([b[0], b[1], b[2], b[3]]))
+    }
+
+    /// Read an LEB128-encoded u32 (up to 5 bytes).
+    pub fn leb128_u32(&mut self) -> Result<u32, IamfMp4Error> {
+        let mut value = 0u32;
+        for i in 0..5 {
+            let b = self.u8()?;
+            value |= u32::from(b & 0x7F) << (7 * i);
+            if b & 0x80 == 0 {
+                return Ok(value);
+            }
+        }
+        Err(IamfMp4Error::MalformedBox("box", "leb128 overflow"))
     }
 
     /// Read a big-endian u64.

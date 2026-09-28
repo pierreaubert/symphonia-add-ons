@@ -56,7 +56,7 @@ pub(super) fn fir_predict_scalar(ftable: &[[i16; 256]; 16], st: &[u32; 4]) -> i1
 #[cfg(target_arch = "x86_64")]
 #[inline]
 pub(super) fn fir_predict_sse2(ftable: &[[i16; 256]; 16], st: &[u32; 4]) -> i16 {
-    use std::arch::x86_64::*;
+    use std::arch::x86_64::{_mm_add_epi16, _mm_extract_epi16, _mm_set_epi16, _mm_srli_si128};
 
     // SAFETY: every x86_64 baseline target has SSE2. The table lookups are
     // ordinary safe indexing into fixed 256-entry tables using masked bytes.
@@ -99,7 +99,10 @@ pub(super) fn fir_predict_sse2(ftable: &[[i16; 256]; 16], st: &[u32; 4]) -> i16 
 #[target_feature(enable = "avx2")]
 #[inline]
 pub(super) unsafe fn fir_predict_avx2(ftable: &[[i16; 256]; 16], st: &[u32; 4]) -> i16 {
-    use std::arch::x86_64::*;
+    use std::arch::x86_64::{
+        _mm_add_epi16, _mm_extract_epi16, _mm_srli_si128, _mm256_castsi256_si128,
+        _mm256_extracti128_si256, _mm256_set_epi16,
+    };
 
     let w0 = st[0];
     let w1 = st[1];

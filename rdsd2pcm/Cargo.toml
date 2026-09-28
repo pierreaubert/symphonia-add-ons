@@ -24,3 +24,7 @@ file-io = ["dep:flac-codec", "dep:id3", "dep:rand"]
 
 # Note: crate-level lint overrides live next to the code they justify
 # (filter tables, legacy constructor), not as a blanket allow.
+
+[lints.clippy]
+# No glob imports: explicit import lists keep API scope reviewable.
+wildcard_imports = "warn"

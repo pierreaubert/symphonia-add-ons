@@ -353,7 +353,9 @@ fn dsd_rate_multiplier(sample_rate: u32) -> Result<i32, DsdPcmError> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{
+        DsdPcmConverter, DsdPcmError, DsdPcmOptions, PcmOutputEncoding,
+    };
 
     #[test]
     fn sacd_frame_converts_to_176k4_pcm_frames() {

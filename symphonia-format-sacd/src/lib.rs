@@ -31,15 +31,30 @@ mod tests;
 mod types;
 mod write;
 
-pub use consts::*;
-pub use error::*;
-pub use register::*;
-pub use sacd_area::*;
-pub use sacd_disc::*;
-pub use sacd_format_reader::*;
-pub use sacd_frame_format::*;
-pub use sacd_iso::*;
-pub use sacd_metadata::*;
-pub use sacd_packet_reader::*;
-pub use types::*;
-pub use write::*;
+#[doc(inline)]
+pub use consts::{
+    FRAME_SIZE_64, SACD_FRAME_RATE, SACD_LSN_SIZE, SACD_SAMPLING_FREQUENCY, SAMPLES_PER_FRAME,
+    START_OF_MASTER_TOC,
+};
+#[doc(inline)]
+pub use error::SacdError;
+#[doc(inline)]
+pub use register::{register_all, register_decoders};
+#[doc(inline)]
+pub use sacd_area::SacdArea;
+#[doc(inline)]
+pub use sacd_disc::SacdDisc;
+#[doc(inline)]
+pub use sacd_format_reader::SacdFormatReader;
+#[doc(inline)]
+pub use sacd_frame_format::SacdFrameFormat;
+#[doc(inline)]
+pub use sacd_iso::SacdIso;
+#[doc(inline)]
+pub use sacd_metadata::SacdMetadata;
+#[doc(inline)]
+pub use sacd_packet_reader::SacdPacketReader;
+#[doc(inline)]
+pub use types::{SacdAreaKind, SacdPacket, SacdResult, SacdTrack, SacdTrackMetadata};
+#[doc(inline)]
+pub use write::write_track_as_dsf;

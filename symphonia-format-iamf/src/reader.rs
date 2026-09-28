@@ -2,9 +2,10 @@
 //!
 //! One Symphonia track per `trak`; each packet carries one raw codec frame
 //! (Opus, AAC, FLAC, or LPCM — the demuxer never decodes). Timestamps come
-//! from the `stts` table plus the `elst` media-time offset; only
+//! from the `stts` table rebased through the `elst` edit list; only
 //! rewind-to-start seeking is supported.
 
+use std::collections::HashMap;
 use std::io::{Read, Seek, SeekFrom};
 
 use sotf_iamf::types::{CodecConfig, CodecId};
@@ -16,17 +17,22 @@ use symphonia_core::codecs::audio::well_known::{
 use symphonia_core::codecs::audio::{AudioCodecId, AudioCodecParameters};
 use symphonia_core::common::FourCc;
 use symphonia_core::errors::{Error as SymphoniaError, Result as SymphoniaResult, SeekErrorKind};
-use symphonia_core::formats::TrackFlags;
-use symphonia_core::formats::prelude::*;
 use symphonia_core::formats::probe::{ProbeFormatData, ProbeableFormat, Score, Scoreable};
+use symphonia_core::formats::{
+    FormatId, FormatInfo, FormatOptions, FormatReader, MediaInfo, SeekMode, SeekTo, SeekedTo,
+    Track, TrackFlags,
+};
 use symphonia_core::io::{MediaSourceStream, ReadBytes, ScopedStream};
 use symphonia_core::meta::{Metadata, MetadataLog};
+use symphonia_core::packet::Packet;
 use symphonia_core::support_format;
-use symphonia_core::units::Time;
+use symphonia_core::units::{Duration, Time, TimeBase, Timestamp};
 
 use crate::boxes::{BoxHeader, walk_children};
-use crate::descriptors::{IamfTrackConfig, check_ftyp, parse_trak};
+use crate::descriptors::{IamfTrackConfig, check_ftyp, parse_trak, validate_roll};
 use crate::error::{IamfMp4Error, seek_err, to_symphonia_error};
+use crate::fragments::{TrackDefaults, append_fragments, parse_mvex};
+use crate::sample_table::parse_mvhd_timescale;
 
 /// Format descriptor: IAMF audio carried in ISO-BMFF.
 pub const FORMAT_INFO: FormatInfo = FormatInfo {
@@ -57,7 +63,9 @@ struct PacketCursor {
     run_idx: usize,
     sample_in_run: usize,
     next_offset: u64,
-    next_ts: i64,
+    next_media_dts: i64,
+    ordinal: u64,
+    seg_idx: usize,
     stts_row: usize,
     stts_left: u32,
     packet_index: u64,
@@ -66,20 +74,21 @@ struct PacketCursor {
 impl PacketCursor {
     fn new(symphonia_id: u32, config: IamfTrackConfig) -> Self {
         let next_offset = config.sample_table.runs.first().map_or(0, |r| r.offset);
-        // `take_sample` refills and skips exhausted rows, so seeding the
+        // `advance_table` refills and skips exhausted rows, so seeding the
         // first row's count (possibly zero) is enough.
         let (stts_row, stts_left) = match config.sample_table.stts.first() {
             Some(&(count, _)) => (0, count),
             None => (0, 0),
         };
-        let start_media_time = config.start_media_time;
         Self {
             symphonia_id,
             config,
             run_idx: 0,
             sample_in_run: 0,
             next_offset,
-            next_ts: start_media_time,
+            next_media_dts: 0,
+            ordinal: 0,
+            seg_idx: 0,
             stts_row,
             stts_left,
             packet_index: 0,
@@ -104,11 +113,38 @@ impl PacketCursor {
         }
     }
 
-    /// Consume the current sample: returns (offset, size, ts, dur).
+    /// Consume the next selected sample: returns (offset, size, pts, dur).
+    ///
+    /// Table samples outside the edit plan's segments are skipped;
+    /// emitted timestamps are rebased onto the presentation timeline.
     fn take_sample(&mut self) -> Option<(u64, u32, i64, u64)> {
+        loop {
+            let seg = *self.config.edit_plan.segments.get(self.seg_idx)?;
+            while self.ordinal < seg.ord_start {
+                self.advance_table()?;
+            }
+            if self.ordinal >= seg.ord_end {
+                self.seg_idx += 1;
+                continue;
+            }
+            let ordinal = self.ordinal;
+            let (offset, size, media_dts, dur) = self.advance_table()?;
+            let ctts = usize::try_from(ordinal)
+                .ok()
+                .and_then(|i| self.config.sample_table.sample_ctts.get(i).copied())
+                .unwrap_or(0);
+            let pts = seg.pts_base + (media_dts - seg.media_base) + ctts;
+            self.packet_index += 1;
+            return Some((offset, size, pts, dur));
+        }
+    }
+
+    /// Consume the current table sample: returns (offset, size, media
+    /// dts, dur).
+    fn advance_table(&mut self) -> Option<(u64, u32, i64, u64)> {
         let size = self.sample_size()?;
         let offset = self.next_offset;
-        let ts = self.next_ts;
+        let dts = self.next_media_dts;
         // Current stts delta, advancing past exhausted/zero rows.
         let dur = loop {
             let &(count, delta) = self.config.sample_table.stts.get(self.stts_row)?;
@@ -122,7 +158,8 @@ impl PacketCursor {
             break u64::from(delta);
         };
         self.next_offset += u64::from(size);
-        self.next_ts += dur.cast_signed();
+        self.next_media_dts += dur.cast_signed();
+        self.ordinal += 1;
         self.sample_in_run += 1;
         self.stts_left = self.stts_left.saturating_sub(1);
         if self.stts_left == 0 {
@@ -135,8 +172,7 @@ impl PacketCursor {
                 self.stts_row += 1;
             }
         }
-        self.packet_index += 1;
-        Some((offset, size, ts, dur))
+        Some((offset, size, dts, dur))
     }
 }
 
@@ -153,10 +189,14 @@ pub struct IamfFormatReader<'s> {
 impl<'s> IamfFormatReader<'s> {
     /// Parse all top-level boxes and build per-track demux state.
     ///
+    /// `moof` fragments (with `mvex`/`trex` defaults from `moov`) extend
+    /// each track's sample table in file order before packets flow.
+    ///
     /// # Errors
     ///
-    /// Rejects non-IAMF files, fragmented inputs, tracks without `iacb`
-    /// or sample tables, and samples pointing outside the file.
+    /// Rejects non-IAMF files, tracks without `iacb` or sample tables,
+    /// malformed fragments, unrepresentable edit lists, and samples
+    /// pointing outside the file.
     pub fn try_new(
         mut reader: MediaSourceStream<'s>,
         _opts: FormatOptions,
@@ -170,7 +210,7 @@ impl<'s> IamfFormatReader<'s> {
 
         let mut ftyp: Option<Vec<u8>> = None;
         let mut moov: Option<BoxHeader> = None;
-        let mut fragmented = false;
+        let mut moofs: Vec<BoxHeader> = Vec::new();
 
         walk_children(&mut reader, file_len, 0, |r, child, _| {
             match &child.typ {
@@ -178,40 +218,39 @@ impl<'s> IamfFormatReader<'s> {
                     ftyp = Some(child.read_payload(r)?);
                 }
                 b"moov" => moov = Some(*child),
-                b"moof" | b"mvex" => fragmented = true,
+                b"moof" => moofs.push(*child),
                 _ => child.skip(r)?,
             }
             Ok(true)
         })
         .map_err(to_symphonia_error)?;
 
-        if fragmented {
-            return Err(to_symphonia_error(IamfMp4Error::Unsupported(
-                "fragmented MP4 (moof/mvex), milestone 2",
-            )));
-        }
         let ftyp = ftyp.ok_or_else(|| to_symphonia_error(IamfMp4Error::NotIamf))?;
         check_ftyp(&ftyp).map_err(to_symphonia_error)?;
         let moov = moov.ok_or_else(|| to_symphonia_error(IamfMp4Error::MissingBox("moov")))?;
 
-        // Walk moov for tracks.
+        // Walk moov for the movie timescale, tracks, and fragment
+        // defaults.
         let moov_end = moov.end_offset.unwrap_or(file_len);
         reader
             .seek(SeekFrom::Start(moov.payload_offset))
             .map_err(SymphoniaError::from)?;
         let mut configs = Vec::new();
+        let mut movie_timescale: Option<u32> = None;
+        let mut track_defaults: HashMap<u32, TrackDefaults> = HashMap::new();
         let mut track_number = 0u32;
         walk_children(&mut reader, moov_end, 1, |r, child, _| {
             match &child.typ {
+                b"mvhd" => {
+                    movie_timescale = Some(parse_mvhd_timescale(&child.read_payload(r)?)?);
+                }
                 b"trak" => {
                     track_number += 1;
                     let config = parse_trak(r, child, track_number)?;
                     configs.push(config);
                 }
                 b"mvex" => {
-                    return Err(IamfMp4Error::Unsupported(
-                        "fragmented MP4 (mvex), milestone 2",
-                    ));
+                    track_defaults.extend(parse_mvex(r, child)?);
                 }
                 _ => child.skip(r)?,
             }
@@ -221,6 +260,30 @@ impl<'s> IamfFormatReader<'s> {
 
         if configs.is_empty() {
             return Err(to_symphonia_error(IamfMp4Error::NoAudioTrack));
+        }
+
+        if !moofs.is_empty() {
+            append_fragments(&mut reader, &moofs, &track_defaults, &mut configs, file_len)
+                .map_err(to_symphonia_error)?;
+            // Fragment runs carry no groups of their own; re-validate
+            // roll against the merged tables.
+            for config in &configs {
+                validate_roll(&config.sample_table, &config.entries).map_err(to_symphonia_error)?;
+            }
+        }
+
+        // Derive each track's presentation plan from its edit list. Only
+        // tracks with edits need the movie timescale for conversion.
+        for config in &mut configs {
+            let movie_ts = if config.edits.is_empty() {
+                config.timescale
+            } else {
+                movie_timescale
+                    .ok_or_else(|| to_symphonia_error(IamfMp4Error::MissingBox("moov/mvhd")))?
+            };
+            config
+                .finalize_edits(movie_ts)
+                .map_err(to_symphonia_error)?;
         }
 
         // Validate sample bounds against the file length.
@@ -296,15 +359,15 @@ fn build_track(config: &IamfTrackConfig, sym_id: u32, is_default: bool) -> Symph
     let time_base = TimeBase::try_from_recip(config.timescale)
         .ok_or(SymphoniaError::DecodeError("iamf: invalid track timescale"))?;
     let num_frames =
-        u64::from(codec.num_samples_per_frame).saturating_mul(config.sample_table.sample_count);
+        u64::from(codec.num_samples_per_frame).saturating_mul(config.edit_plan.selected_samples);
 
     let mut track = Track::new(sym_id);
     track
         .with_codec_params(CodecParameters::Audio(params))
         .with_time_base(time_base)
-        .with_duration(Duration::new(config.sample_table.duration))
+        .with_duration(Duration::new(config.edit_plan.presentation_duration))
         .with_num_frames(num_frames)
-        .with_start_ts(Timestamp::new(config.start_media_time));
+        .with_start_ts(Timestamp::new(config.edit_plan.first_pts()));
     if is_default {
         track.with_flags(TrackFlags::DEFAULT);
     }

@@ -258,10 +258,11 @@ fn default_output_sample_rate(input_sample_rate: u32) -> u32 {
 #[cfg(test)]
 mod tests {
     use symphonia_core::audio::Channels;
-    use symphonia_core::codecs::audio::AudioDecoderOptions;
+    use symphonia_core::audio::sample::SampleFormat;
+    use symphonia_core::codecs::audio::{AudioCodecParameters, AudioDecoderOptions};
     use symphonia_core::codecs::registry::CodecRegistry;
 
-    use super::*;
+    use super::{CODEC_ID_DST, DstDsdDecoder, register_decoders};
 
     #[test]
     fn registry_constructs_dst_decoder() {

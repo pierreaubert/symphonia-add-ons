@@ -15,10 +15,13 @@ use log::{debug, info};
 use std::io::{ErrorKind, Seek, SeekFrom};
 use symphonia_core::codecs::CodecParameters;
 use symphonia_core::errors::{Error, Result, SeekErrorKind, decode_error, seek_error};
-use symphonia_core::formats::prelude::*;
 use symphonia_core::formats::probe::{ProbeFormatData, ProbeableFormat, Score, Scoreable};
+use symphonia_core::formats::{
+    FormatInfo, FormatOptions, FormatReader, MediaInfo, SeekMode, SeekTo, SeekedTo, Track,
+};
 use symphonia_core::io::{MediaSource, MediaSourceStream, ReadBytes, ScopedStream};
-use symphonia_core::meta::{Metadata, MetadataLog};
+use symphonia_core::meta::{ChapterGroup, Metadata, MetadataLog};
+use symphonia_core::packet::Packet;
 use symphonia_core::support_format;
 use symphonia_core::units::{Duration, Timestamp};
 

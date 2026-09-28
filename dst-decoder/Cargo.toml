@@ -18,3 +18,7 @@ fixture-tests = []
 
 [dependencies]
 anyhow = { workspace = true }
+
+[lints.clippy]
+# No glob imports: explicit import lists keep API scope reviewable.
+wildcard_imports = "warn"

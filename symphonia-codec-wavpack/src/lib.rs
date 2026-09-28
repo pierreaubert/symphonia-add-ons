@@ -46,5 +46,7 @@ mod words_decoder;
 mod wp;
 mod write;
 
-pub use wav_pack_decoder::*;
-pub use wav_pack_reader::*;
+#[doc(inline)]
+pub use wav_pack_decoder::WavPackDecoder;
+#[doc(inline)]
+pub use wav_pack_reader::WavPackReader;

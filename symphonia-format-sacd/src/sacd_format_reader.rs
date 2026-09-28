@@ -20,14 +20,16 @@ use symphonia_core::codecs::audio::AudioCodecParameters;
 use symphonia_core::errors::{
     Error as SymphoniaError, Result as SymphoniaResult, SeekErrorKind, seek_error,
 };
-use symphonia_core::formats::TrackFlags;
-use symphonia_core::formats::prelude::*;
 use symphonia_core::formats::probe::{ProbeFormatData, ProbeableFormat, Score, Scoreable};
+use symphonia_core::formats::{
+    FormatInfo, FormatOptions, FormatReader, MediaInfo, SeekMode, SeekTo, SeekedTo, Track,
+    TrackFlags,
+};
 use symphonia_core::io::{MediaSourceStream, ScopedStream};
 use symphonia_core::meta::{Metadata, MetadataLog};
 use symphonia_core::packet::Packet;
 use symphonia_core::support_format;
-use symphonia_core::units::Time;
+use symphonia_core::units::{Duration, Time, Timestamp};
 
 pub struct SacdFormatReader<'s> {
     pub(super) reader: MediaSourceStream<'s>,

@@ -19,3 +19,7 @@ dst-decoder = { workspace = true }
 rdsd2pcm = { workspace = true }
 symphonia-core = { workspace = true }
 thiserror = { workspace = true }
+
+[lints.clippy]
+# No glob imports: explicit import lists keep API scope reviewable.
+wildcard_imports = "warn"

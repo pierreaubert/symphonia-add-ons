@@ -13,8 +13,8 @@ use super::types::PacketInfo;
 use super::types::PacketTrack;
 use super::types::SacdResult;
 use super::types::SacdTrack;
-use symphonia_core::formats::prelude::*;
 use symphonia_core::packet::Packet;
+use symphonia_core::units::{Duration, Timestamp};
 
 pub(super) fn process_audio_sector(
     sector: &[u8; SACD_LSN_SIZE],

@@ -14,5 +14,7 @@ mod round;
 mod stage1_poly;
 mod types;
 
-pub use compute::*;
-pub use lmresampler::*;
+#[doc(inline)]
+pub use compute::compute_decim_and_upsample;
+#[doc(inline)]
+pub use lmresampler::LMResampler;

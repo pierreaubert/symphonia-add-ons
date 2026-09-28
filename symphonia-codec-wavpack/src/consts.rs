@@ -7,7 +7,7 @@ use super::types::FloatInfo;
 use super::types::Int32Info;
 use symphonia_core::codecs::CodecInfo;
 use symphonia_core::errors::{Error, Result};
-use symphonia_core::formats::prelude::*;
+use symphonia_core::formats::FormatInfo;
 use symphonia_core::formats::well_known::FORMAT_ID_WAVPACK;
 
 pub(super) const WAVPACK_MARKER: [u8; 4] = *b"wvpk";

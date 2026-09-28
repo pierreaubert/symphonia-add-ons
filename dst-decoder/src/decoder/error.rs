@@ -5,7 +5,7 @@
 /// Each variant maps to a specific malformed-bitstream condition checked
 /// by the spec; the [`Display`](std::fmt::Display) impl yields a human-
 /// readable message. These are wrapped by [`anyhow::Error`] in the public
-/// API (see [`DstDecoder::decode_frame`]).
+/// API (see [`crate::decoder::DstDecoder::decode_frame`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DstError {
     /// The bit reader was advanced past the end of the input frame.

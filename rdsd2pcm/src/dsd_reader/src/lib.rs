@@ -123,7 +123,11 @@ mod misc;
 #[path = "lib/types.rs"]
 mod types;
 
-pub use dsd_iter::*;
-pub use dsd_rate::*;
-pub use dsd_reader::*;
-pub use types::*;
+#[doc(inline)]
+pub use dsd_iter::DsdIter;
+#[doc(inline)]
+pub use dsd_rate::DsdRate;
+#[doc(inline)]
+pub use dsd_reader::DsdReader;
+#[doc(inline)]
+pub use types::{Endianness, FmtType};

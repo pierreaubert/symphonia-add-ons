@@ -40,8 +40,10 @@ use std::path::Path;
 mod audio_sample;
 mod types;
 
-pub use audio_sample::*;
-pub use types::*;
+#[doc(inline)]
+pub use audio_sample::AudioSample;
+#[doc(inline)]
+pub use types::AudioFileFormat;
 
 #[derive(Clone)]
 pub struct AudioFile<T> {

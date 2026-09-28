@@ -1,39 +1,57 @@
 //! IA Sequence bridge: rebuild the canonical descriptor byte stream from
 //! per-track `iacb` sections.
 //!
-//! A BMFF file stores one descriptor set per audio track while the raw IA
+//! A BMFF file stores one descriptor set per sample entry while the raw IA
 //! Sequence (`sotf-iamf`) expects a single leading descriptor section.
-//! [`reassemble_ia_sequence`] concatenates the per-track OBU sections,
-//! keeping the first track's sequence-header OBU and dropping the repeated
-//! sequence-header OBU of later tracks so every codec config, audio
+//! [`reassemble_ia_sequence`] concatenates every entry section across
+//! tracks, keeping the first sequence-header OBU and dropping the repeated
+//! sequence-header OBU of later sections so every codec config, audio
 //! element, and mix presentation appears exactly once.
 
 use sotf_iamf::obu::parser::parse_obu_header;
 use sotf_iamf::obu::{ObuHeader, ObuType};
 
-use crate::descriptors::IamfTrackConfig;
+use crate::descriptors::{IamfTrackConfig, TrackEntry};
 use crate::error::IamfMp4Error;
 
-/// Raw descriptor OBUs of one track, verbatim from its `iacb` box.
+/// Raw descriptor OBUs of a track's first entry, verbatim from `iacb`.
 #[must_use]
 pub fn track_descriptor_obus(track: &IamfTrackConfig) -> &[u8] {
-    &track.obu_section
+    track
+        .entries
+        .first()
+        .map_or(&[], |entry| entry.obu_section.as_slice())
+}
+
+/// Raw descriptor OBUs of one sample entry, verbatim from `iacb`.
+#[must_use]
+pub fn entry_descriptor_obus(entry: &TrackEntry) -> &[u8] {
+    &entry.obu_section
 }
 
 /// Rebuild the canonical IA Sequence descriptor section from demuxed tracks.
 ///
-/// The first track's OBU section (sequence-header OBU first) is emitted
-/// whole; each later track contributes its section minus its leading
-/// sequence-header OBU. All tracks must agree on the sequence header —
+/// The first entry's OBU section (sequence-header OBU first) is emitted
+/// whole; each later entry contributes its section minus its leading
+/// sequence-header OBU. All entries must agree on the sequence header —
 /// a mismatch is rejected rather than silently picked.
 ///
 /// # Errors
 ///
-/// Rejects empty track lists, sections without a leading sequence-header
-/// OBU, and sequence-header mismatches across tracks.
+/// Rejects empty track/entry lists, sections without a leading
+/// sequence-header OBU, and sequence-header mismatches across entries.
 pub fn reassemble_ia_sequence(tracks: &[IamfTrackConfig]) -> Result<Vec<u8>, IamfMp4Error> {
-    let first = tracks.first().ok_or(IamfMp4Error::NoAudioTrack)?;
-    let (first_header, first_len) = obu_span(&first.obu_section)?;
+    let sections: Vec<&[u8]> = tracks
+        .iter()
+        .flat_map(|track| {
+            track
+                .entries
+                .iter()
+                .map(|entry| entry.obu_section.as_slice())
+        })
+        .collect();
+    let first = sections.first().ok_or(IamfMp4Error::NoAudioTrack)?;
+    let (first_header, first_len) = obu_span(first)?;
     if first_header.obu_type != ObuType::SequenceHeader {
         return Err(IamfMp4Error::MalformedBox(
             "iacb",
@@ -41,23 +59,22 @@ pub fn reassemble_ia_sequence(tracks: &[IamfTrackConfig]) -> Result<Vec<u8>, Iam
         ));
     }
 
-    let mut out = first.obu_section.clone();
-    for track in &tracks[1..] {
-        let (header, header_len) = obu_span(&track.obu_section)?;
+    let mut out = first.to_vec();
+    for section in sections.iter().skip(1) {
+        let (header, header_len) = obu_span(section)?;
         if header.obu_type != ObuType::SequenceHeader {
             return Err(IamfMp4Error::MalformedBox(
                 "iacb",
-                "track section without leading sequence header",
+                "entry section without leading sequence header",
             ));
         }
-        let this_header_bytes = &track.obu_section[..header_len];
-        if this_header_bytes != &first.obu_section[..first_len] {
+        if section[..header_len] != first[..first_len] {
             return Err(IamfMp4Error::MalformedBox(
                 "iacb",
-                "sequence header mismatch across tracks",
+                "sequence header mismatch across entries",
             ));
         }
-        out.extend_from_slice(&track.obu_section[header_len..]);
+        out.extend_from_slice(&section[header_len..]);
     }
     Ok(out)
 }

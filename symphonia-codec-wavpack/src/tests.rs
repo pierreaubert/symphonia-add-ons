@@ -46,7 +46,7 @@ use symphonia_core::audio::sample::SampleFormat;
 use symphonia_core::audio::{AudioSpec, Channels, GenericAudioBuffer};
 use symphonia_core::codecs::audio::AudioDecoder;
 use symphonia_core::errors::{Error, Result};
-use symphonia_core::formats::prelude::*;
+use symphonia_core::packet::Packet;
 use symphonia_core::units::{Duration, Timestamp};
 
 mod make;

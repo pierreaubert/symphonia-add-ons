@@ -4,7 +4,7 @@ use super::types::ExampleResult;
 use super::wav_encoding::WavEncoding;
 use super::write::write_dsd_packet_as_wav;
 use super::write::write_wav_header;
-use rayon::prelude::*;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rdsd2pcm::{DsdPcmConverter, PcmOutputEncoding};
 use std::io::{Seek, SeekFrom, Write};
 use symphonia_codec_dst::DstDsdDecoder;

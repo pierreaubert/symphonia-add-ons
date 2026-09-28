@@ -6,7 +6,7 @@ use super::misc::dsf_channel_type;
 use super::sacd_error::decode_dst_packet;
 use super::sacd_packet_reader::SacdPacketReader;
 use super::types::SacdResult;
-use rayon::prelude::*;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::io::{self, Read, Seek, Write};
 use symphonia_codec_dst::DstDsdDecoder;
 

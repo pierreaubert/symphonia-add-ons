@@ -14,7 +14,7 @@ use super::super::wav_pack_reader::WavPackReader;
 use std::io::Cursor;
 use symphonia_core::audio::sample::SampleFormat;
 use symphonia_core::codecs::CodecParameters;
-use symphonia_core::formats::prelude::*;
+use symphonia_core::formats::{FormatReader, SeekMode, SeekTo};
 use symphonia_core::io::MediaSourceStream;
 use symphonia_core::units::Timestamp;
 

@@ -27,7 +27,8 @@ use std::time::Instant;
 mod misc;
 mod types;
 
-pub use types::*;
+#[doc(inline)]
+pub use types::ProgressUpdate;
 
 use misc::RETRIES;
 
