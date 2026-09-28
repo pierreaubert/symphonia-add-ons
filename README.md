@@ -10,6 +10,9 @@ suitable for upstreaming.
 - `symphonia-format-sacd` -- SACD ISO container reader and extractor. It exposes
   a Symphonia `FormatReader` for stereo and multichannel SACD areas and an
   `extract_sacd` example for DSF/WAV extraction.
+- `symphonia-format-iamf` -- IAMF immersive-audio demuxer for ISO-BMFF
+  (`.mp4`) containers. It exposes a Symphonia `FormatReader` with one track
+  per audio track plus an IA Sequence reassembly bridge for `sotf-iamf`.
 - `symphonia-codec-dsd` -- Symphonia audio decoder for DSD packets, converting
   packed DSD to PCM through `rdsd2pcm`.
 - `symphonia-codec-dst` -- Symphonia audio decoder for SACD DST packets. It
@@ -26,6 +29,7 @@ suitable for upstreaming.
 Consumers should register only the pieces they need:
 
 - SACD format support: `symphonia_format_sacd::register_all(...)`
+- IAMF format support: `symphonia_format_iamf::register_all(...)`
 - DSD decode support: `symphonia_codec_dsd::register_decoders(...)`
 - DST decode support: `symphonia_codec_dst::register_decoders(...)`
 - WavPack support: register `symphonia_codec_wavpack::WavPackReader` and
