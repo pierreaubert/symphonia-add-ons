@@ -4,6 +4,8 @@
 #	  cargo install just
 # ----------------------------------------------------------------------
 
+cargo := `if command -v mbx >/dev/null 2>&1; then echo mbx; else echo cargo; fi`
+
 _default:
 	just --list
 
@@ -19,11 +21,11 @@ test_features := ""
 
 [group('test')]
 check:
-	cargo check --workspace --lib --bins --tests --examples {{test_features}}
+	{{cargo}} check --workspace --lib --bins --tests --examples {{test_features}}
 
 [group('test')]
 test:
-	cargo test --workspace --lib --bins --tests --examples {{test_features}}
+	{{cargo}} test --workspace --lib --bins --tests --examples {{test_features}}
 
 # ----------------------------------------------------------------------
 # LINT
@@ -31,7 +33,7 @@ test:
 
 [group('lint')]
 lint:
-	cargo clippy --workspace --all-targets -- -D warnings
+	{{cargo}} clippy --workspace --all-targets -- -D warnings
 
 # ----------------------------------------------------------------------
 # FORMAT
@@ -40,13 +42,13 @@ lint:
 alias format := fmt
 
 fmt:
-	cargo fmt --all
+	{{cargo}} fmt --all
 
 # ----------------------------------------------------------------------
 # CLEAN
 # ----------------------------------------------------------------------
 
 clean:
-	cargo clean
+	{{cargo}} clean
 	find . -name '*~' -exec rm {} \; -print
 	find . -name 'Cargo.lock' -path '*/target/*' -prune -o -name 'Cargo.lock' -exec rm {} \; -print
