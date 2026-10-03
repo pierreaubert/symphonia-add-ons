@@ -7,8 +7,8 @@
 
 use std::io::Cursor;
 
-use sotf_iamf::obu::parse_descriptors;
-use sotf_iamf::obu::parser::parse_temporal_unit_with_kinds;
+use symphonia_iamf_core::obu::parse_descriptors;
+use symphonia_iamf_core::obu::parser::parse_temporal_unit_with_kinds;
 use symphonia_core::codecs::CodecParameters;
 use symphonia_core::codecs::audio::well_known::{
     CODEC_ID_AAC, CODEC_ID_FLAC, CODEC_ID_OPUS, CODEC_ID_PCM_S16BE,
@@ -1354,7 +1354,7 @@ fn reassemble_two_tracks_dedupes_sequence_header() {
     // Track 2 carries the same sequence header plus a second codec config.
     let section1 = opus_obu_section(0);
     let (header, header_size) =
-        sotf_iamf::obu::parser::parse_obu_header(&section1).expect("seqhdr");
+        symphonia_iamf_core::obu::parser::parse_obu_header(&section1).expect("seqhdr");
     let seq_total = header_size + header.payload_size;
     let mut section2 = section1[..seq_total].to_vec();
     let mut cc = leb(7);
@@ -1610,7 +1610,7 @@ fn rejects_unknown_stsc_entry() {
 fn custom_opus_section(cc_id: u32) -> Vec<u8> {
     let section1 = opus_obu_section(0);
     let (header, header_size) =
-        sotf_iamf::obu::parser::parse_obu_header(&section1).expect("seqhdr");
+        symphonia_iamf_core::obu::parser::parse_obu_header(&section1).expect("seqhdr");
     let seq_total = header_size + header.payload_size;
     let mut section = section1[..seq_total].to_vec();
     let mut cc = leb(cc_id);
@@ -2383,7 +2383,7 @@ fn fragment_two_moofs_implicit_and_moof_relative() {
     }
     let config = reader.track_config(1).expect("config");
     assert_eq!(config.sample_table.runs.len(), 3);
-    assert!(config.sample_table.sample_roll.is_empty());
+    assert_eq!(config.sample_table.sample_roll, [] as [i16; 0]);
 }
 
 #[test]
@@ -2909,7 +2909,7 @@ fn ctts_all_zero_collapses() {
     assert_eq!(packets.len(), 3);
     assert_eq!(packets[0].pts, Timestamp::ZERO);
     let config = reader.track_config(1).expect("config");
-    assert!(config.sample_table.sample_ctts.is_empty());
+    assert_eq!(config.sample_table.sample_ctts, [] as [i64; 0]);
 }
 
 #[test]
@@ -3470,7 +3470,7 @@ fn codecs_string_profiles() {
 #[test]
 fn corpus_streams_demux() {
     let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../sotf-daw/crates/sotf-iamf/tests/data");
+        .join("../symphonia-iamf-core/tests/data");
     let mut names: Vec<_> = std::fs::read_dir(&dir)
         .expect("sotf-iamf corpus present")
         .map(|e| e.expect("dir entry").path())
@@ -3502,7 +3502,7 @@ fn split_corpus_samples(
     name: &str,
     raw: &[u8],
     temporal_offset: usize,
-    desc: &sotf_iamf::obu::parser::IamfDescriptors,
+    desc: &symphonia_iamf_core::obu::parser::IamfDescriptors,
 ) -> (Vec<Vec<u8>>, bool) {
     let kinds = desc.parameter_kinds();
     let recon = desc.recon_layouts();
@@ -3573,7 +3573,7 @@ fn roundtrip_corpus(name: &str, raw: &[u8], byte_exact: bool) {
         .expect("corpus references known config");
     let needs_roll = matches!(
         selected.codec_id,
-        sotf_iamf::types::CodecId::Opus | sotf_iamf::types::CodecId::AacLc
+        symphonia_iamf_core::types::CodecId::Opus | symphonia_iamf_core::types::CodecId::AacLc
     );
     let opts = FileOpts {
         deltas: vec![delta; frames.len()],

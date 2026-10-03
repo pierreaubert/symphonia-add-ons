@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 use std::io::{Read, Seek, SeekFrom};
 
-use sotf_iamf::types::{CodecConfig, CodecId};
+use symphonia_iamf_core::types::{CodecConfig, CodecId};
 use symphonia_core::codecs::CodecParameters;
 use symphonia_core::codecs::audio::well_known::{
     CODEC_ID_AAC, CODEC_ID_FLAC, CODEC_ID_OPUS, CODEC_ID_PCM_S16BE, CODEC_ID_PCM_S24BE,

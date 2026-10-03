@@ -8,8 +8,8 @@
 //! sequence-header OBU of later sections so every codec config, audio
 //! element, and mix presentation appears exactly once.
 
-use sotf_iamf::obu::parser::parse_obu_header;
-use sotf_iamf::obu::{ObuHeader, ObuType};
+use symphonia_iamf_core::obu::parser::parse_obu_header;
+use symphonia_iamf_core::obu::{ObuHeader, ObuType};
 
 use crate::descriptors::{IamfTrackConfig, TrackEntry};
 use crate::error::IamfMp4Error;

@@ -13,10 +13,10 @@
 
 use std::io::{Cursor, Read, Seek, SeekFrom};
 
-use sotf_iamf::error::IamfError;
-use sotf_iamf::obu::parse_descriptors;
-use sotf_iamf::obu::parser::IamfDescriptors;
-use sotf_iamf::types::{CodecConfig, CodecId};
+use symphonia_iamf_core::error::IamfError;
+use symphonia_iamf_core::obu::parse_descriptors;
+use symphonia_iamf_core::obu::parser::IamfDescriptors;
+use symphonia_iamf_core::types::{CodecConfig, CodecId};
 
 use crate::boxes::{BoxHeader, SliceReader, read_full_box, walk_children};
 use crate::error::IamfMp4Error;

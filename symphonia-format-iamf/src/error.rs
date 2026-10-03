@@ -1,6 +1,6 @@
 //! Error type for IAMF BMFF demuxing.
 
-use sotf_iamf::error::IamfError;
+use symphonia_iamf_core::error::IamfError;
 use symphonia_core::errors::{Error as SymphoniaError, SeekErrorKind};
 use thiserror::Error;
 
