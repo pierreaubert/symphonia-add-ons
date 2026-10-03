@@ -7,6 +7,7 @@ members = [
     "symphonia-codec-dst",
     "symphonia-codec-wavpack",
     "symphonia-format-iamf",
+    "symphonia-iamf-core",
     "symphonia-format-sacd",
 ]
 resolver = "3"
@@ -35,7 +36,7 @@ thiserror = "2.0.17"
 
 dst-decoder = { path = "dst-decoder", version = "0.1.2" }
 rdsd2pcm = { path = "rdsd2pcm", version = "0.4.0" }
-sotf-iamf = { path = "../../sotf-daw/crates/sotf-iamf", version = "0.2.0" }
+symphonia-iamf-core = { path = "symphonia-iamf-core", version = "0.1.0" }
 symphonia-codec-dsd = { path = "symphonia-codec-dsd", version = "0.2.0" }
 symphonia-codec-dst = { path = "symphonia-codec-dst", version = "0.2.0" }
 symphonia-codec-wavpack = { path = "symphonia-codec-wavpack", version = "0.1.1" }

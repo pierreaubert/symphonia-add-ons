@@ -17,7 +17,7 @@ path = "src/lib.rs"
 default = []
 
 [dependencies]
-sotf-iamf = { workspace = true }
+symphonia-iamf-core = { workspace = true }
 symphonia-core = { workspace = true }
 symphonia-metadata = { workspace = true }
 thiserror = { workspace = true }
