@@ -12,18 +12,24 @@
 
 use crate::error::{IamfError, IamfResult};
 
+#[derive(Debug)]
 pub struct BitReader<'a> {
     data: &'a [u8],
-    /// Absolute bit position (0..=data.len()*8).
+    /// Absolute bit position (`0..=data.len() * 8`).
     bit_pos: usize,
 }
 
 impl<'a> BitReader<'a> {
+    #[must_use]
     pub fn new(data: &'a [u8]) -> Self {
         Self { data, bit_pos: 0 }
     }
 
-    /// Read `n` bits (1..=32) MSB-first as a u32.
+    /// Read `n` bits (1..=32) MSB-first as a `u32`.
+    ///
+    /// # Errors
+    /// Returns `IamfError::ParseError` if `n` is greater than 32 or if
+    /// fewer than `n` bits remain in the data.
     pub fn read_bits(&mut self, n: u32) -> IamfResult<u32> {
         if n == 0 {
             return Ok(0);
@@ -50,7 +56,7 @@ impl<'a> BitReader<'a> {
             // Extract `take` bits starting at `bit_in_byte` (MSB-first).
             let shift_right = avail - take;
             let mask = (1u32 << take) - 1;
-            let chunk = ((self.data[byte_idx] as u32) >> shift_right) & mask;
+            let chunk = (u32::from(self.data[byte_idx]) >> shift_right) & mask;
             value = (value << take) | chunk;
             self.bit_pos += take;
             remaining -= take;
@@ -58,12 +64,36 @@ impl<'a> BitReader<'a> {
         Ok(value)
     }
 
-    /// Read a single bit as a bool.
+    /// Read `n` bits (0..=8) MSB-first as a `u8`.
+    ///
+    /// # Errors
+    /// Returns `IamfError::ParseError` if `n` is greater than 8 or if
+    /// fewer than `n` bits remain in the data.
+    pub fn read_bits_u8(&mut self, n: u32) -> IamfResult<u8> {
+        if n > 8 {
+            return Err(IamfError::ParseError(format!(
+                "BitReader::read_bits_u8 n={n} > 8"
+            )));
+        }
+        let value = self.read_bits(n)?;
+        u8::try_from(value).map_err(|_| {
+            IamfError::ParseError(format!("BitReader: {n}-bit value {value} exceeds u8"))
+        })
+    }
+
+    /// Read a single bit as a `bool`.
+    ///
+    /// # Errors
+    /// Returns `IamfError::ParseError` if no bits remain in the data.
     pub fn read_bool(&mut self) -> IamfResult<bool> {
         Ok(self.read_bits(1)? != 0)
     }
 
     /// Skip `n` bits.
+    ///
+    /// # Errors
+    /// Returns `IamfError::ParseError` if fewer than `n` bits remain
+    /// in the data.
     pub fn skip_bits(&mut self, n: u32) -> IamfResult<()> {
         let end = self.bit_pos + n as usize;
         if end > self.data.len() * 8 {
@@ -85,11 +115,13 @@ impl<'a> BitReader<'a> {
 
     /// Byte offset of the cursor, rounded up. After `align_to_byte()` this is
     /// the exact byte offset just past the bits that have been consumed.
+    #[must_use]
     pub fn byte_pos(&self) -> usize {
         self.bit_pos.div_ceil(8)
     }
 
     /// Whether the cursor is currently byte-aligned.
+    #[must_use]
     pub fn is_byte_aligned(&self) -> bool {
         self.bit_pos.is_multiple_of(8)
     }
@@ -125,8 +157,8 @@ mod tests {
     fn read_past_end_errors() {
         let data = [0xff];
         let mut br = BitReader::new(&data);
-        assert!(br.read_bits(8).is_ok());
-        assert!(br.read_bits(1).is_err());
+        br.read_bits(8).unwrap();
+        br.read_bits(1).unwrap_err();
     }
 
     #[test]
@@ -162,14 +194,14 @@ mod tests {
     fn read_bits_too_many_errors() {
         let data = [0xFF];
         let mut br = BitReader::new(&data);
-        assert!(br.read_bits(33).is_err());
+        br.read_bits(33).unwrap_err();
     }
 
     #[test]
     fn skip_bits_zero_ok() {
         let data = [0xFF];
         let mut br = BitReader::new(&data);
-        assert!(br.skip_bits(0).is_ok());
+        br.skip_bits(0).unwrap();
         assert_eq!(br.byte_pos(), 0);
     }
 
@@ -177,7 +209,7 @@ mod tests {
     fn skip_past_end_errors() {
         let data = [0xFF];
         let mut br = BitReader::new(&data);
-        assert!(br.skip_bits(9).is_err());
+        br.skip_bits(9).unwrap_err();
     }
 
     #[test]
@@ -208,9 +240,19 @@ mod tests {
     }
 
     #[test]
+    fn read_bits_u8_narrow() {
+        let data = [0b1011_0010];
+        let mut br = BitReader::new(&data);
+        assert_eq!(br.read_bits_u8(3).unwrap(), 0b101);
+        assert_eq!(br.read_bits_u8(5).unwrap(), 0b1_0010);
+        assert_eq!(br.read_bits_u8(0).unwrap(), 0);
+        br.read_bits_u8(9).unwrap_err();
+    }
+
+    #[test]
     fn read_all_32_bits() {
         let data = [0x12, 0x34, 0x56, 0x78];
         let mut br = BitReader::new(&data);
-        assert_eq!(br.read_bits(32).unwrap(), 0x12345678);
+        assert_eq!(br.read_bits(32).unwrap(), 0x1234_5678);
     }
 }

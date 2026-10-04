@@ -1,4 +1,6 @@
-use crate::types::*;
+use crate::types::{
+    AudioElement, CodecConfig, ElementConfig, MixPresentation, ParameterDataKind, ReconGainLayout,
+};
 use std::collections::HashMap;
 
 /// Parsed descriptor section of an IAMF stream
@@ -12,9 +14,10 @@ pub struct IamfDescriptors {
 }
 
 impl IamfDescriptors {
-    /// Build a `parameter_id -> kind` map from all audio_element parameter
+    /// Build a `parameter_id -> kind` map from all `audio_element` parameter
     /// definitions. Parameter blocks in temporal units reference these IDs;
     /// the kind drives `parse_parameter_block_with_kind` payload dispatch.
+    #[must_use]
     pub fn parameter_kinds(&self) -> HashMap<u32, ParameterDataKind> {
         let mut map = HashMap::new();
         for ae in &self.audio_elements {
@@ -26,8 +29,9 @@ impl IamfDescriptors {
     }
 
     /// Build a `parameter_id -> ReconGainLayout` map from channel audio
-    /// elements that define a ReconGain parameter. The parser needs the
+    /// elements that define a `ReconGain` parameter. The parser needs the
     /// owning element's layer flags to know how many gain bytes follow.
+    #[must_use]
     pub fn recon_layouts(&self) -> HashMap<u32, ReconGainLayout> {
         let mut map = HashMap::new();
         for ae in &self.audio_elements {
@@ -40,13 +44,14 @@ impl IamfDescriptors {
             }
             if let ElementConfig::Channel(config) = &ae.element_config {
                 let layers = &config.layers;
+                let num_layers = config.num_layers;
                 for pd in &ae.parameter_definitions {
                     if pd.parameter_kind != ParameterDataKind::ReconGain {
                         continue;
                     }
                     map.entry(pd.parameter_id)
                         .or_insert_with(|| ReconGainLayout {
-                            num_layers: layers.len() as u8,
+                            num_layers,
                             layers_present: layers
                                 .iter()
                                 .map(|layer| layer.recon_gain_is_present)

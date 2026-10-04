@@ -10,6 +10,10 @@ pub const MAX_LEB128_CAPACITY: usize = 64 * 1024 * 1024;
 ///   - <= `remaining_bytes` (every element consumes at least one byte).
 ///
 /// Returns the count as `usize` on success.
+///
+/// # Errors
+/// Returns `IamfError::ParseError` if `count` exceeds
+/// `MAX_LEB128_CAPACITY` or `remaining_bytes`.
 pub fn bounded_capacity(count: u32, remaining_bytes: usize) -> IamfResult<usize> {
     let n = count as usize;
     if n > MAX_LEB128_CAPACITY {

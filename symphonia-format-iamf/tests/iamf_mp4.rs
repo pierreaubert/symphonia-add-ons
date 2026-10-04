@@ -2383,7 +2383,7 @@ fn fragment_two_moofs_implicit_and_moof_relative() {
     }
     let config = reader.track_config(1).expect("config");
     assert_eq!(config.sample_table.runs.len(), 3);
-    assert!(config.sample_table.sample_roll.is_empty());
+    assert_eq!(config.sample_table.sample_roll, [] as [i16; 0]);
 }
 
 #[test]
@@ -2909,7 +2909,7 @@ fn ctts_all_zero_collapses() {
     assert_eq!(packets.len(), 3);
     assert_eq!(packets[0].pts, Timestamp::ZERO);
     let config = reader.track_config(1).expect("config");
-    assert!(config.sample_table.sample_ctts.is_empty());
+    assert_eq!(config.sample_table.sample_ctts, [] as [i64; 0]);
 }
 
 #[test]

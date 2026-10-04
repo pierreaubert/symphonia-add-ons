@@ -5,7 +5,7 @@
 // Core types for the IAMF (Immersive Audio Model and Formats) decoder.
 // Based on IAMF v1.1.0 specification.
 
-/// IAMF codec identifiers (4-byte codec_id field)
+/// IAMF codec identifiers (4-byte `codec_id` field)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CodecId {
     Opus,
@@ -15,6 +15,7 @@ pub enum CodecId {
 }
 
 impl CodecId {
+    #[must_use]
     pub fn from_bytes(bytes: [u8; 4]) -> Option<Self> {
         match &bytes {
             b"Opus" => Some(Self::Opus),
@@ -25,6 +26,7 @@ impl CodecId {
         }
     }
 
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Opus => "Opus",
@@ -35,7 +37,7 @@ impl CodecId {
     }
 }
 
-/// Codec configuration descriptor (parsed from codec_config OBU)
+/// Codec configuration descriptor (parsed from `codec_config` OBU)
 #[derive(Debug, Clone)]
 pub struct CodecConfig {
     pub codec_config_id: u32,
@@ -65,7 +67,7 @@ pub enum AmbisonicsMode {
     Projection = 1,
 }
 
-/// IAMF channel layout (loudspeaker_layout field)
+/// IAMF channel layout (`loudspeaker_layout` field)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IamfChannelLayout {
     Mono,
@@ -81,6 +83,7 @@ pub enum IamfChannelLayout {
 }
 
 impl IamfChannelLayout {
+    #[must_use]
     pub fn from_layout_index(idx: u8) -> Option<Self> {
         match idx {
             0 => Some(Self::Mono),
@@ -102,6 +105,7 @@ impl IamfChannelLayout {
     /// equivalent (3, 5, 6, 7, 9, 13, 14, 15) are `None`; the mix
     /// presentation parser drops those layouts, falling back to stereo
     /// when none remain.
+    #[must_use]
     pub fn from_sound_system(idx: u8) -> Option<Self> {
         match idx {
             0 => Some(Self::Stereo),
@@ -116,21 +120,20 @@ impl IamfChannelLayout {
         }
     }
 
+    #[must_use]
     pub fn channel_count(&self) -> usize {
         match self {
             Self::Mono => 1,
             Self::Stereo | Self::Binaural => 2,
-            Self::Layout3_1_2 => 6,
-            Self::Layout5_1 => 6,
-            Self::Layout5_1_2 => 8,
-            Self::Layout5_1_4 => 10,
-            Self::Layout7_1 => 8,
-            Self::Layout7_1_2 => 10,
+            Self::Layout3_1_2 | Self::Layout5_1 => 6,
+            Self::Layout5_1_2 | Self::Layout7_1 => 8,
+            Self::Layout5_1_4 | Self::Layout7_1_2 => 10,
             Self::Layout7_1_4 => 12,
         }
     }
 
-    /// Map to SotF speaker config ID
+    /// Map to `SotF` speaker config ID
+    #[must_use]
     pub fn to_speaker_config_id(&self) -> Option<&'static str> {
         match self {
             Self::Mono => Some("1.0"),
@@ -177,11 +180,11 @@ pub struct AmbisonicsConfig {
     pub coupled_substream_count: u8,
     /// ACN-to-substream channel mapping
     pub channel_mapping: Vec<u8>,
-    /// Demixing matrix for projection mode [output_ch × coupled*2 + uncoupled]
+    /// Demixing matrix for projection mode [`output_ch` × coupled*2 + uncoupled]
     pub demixing_matrix: Vec<f32>,
 }
 
-/// Audio element descriptor (parsed from audio_element OBU)
+/// Audio element descriptor (parsed from `audio_element` OBU)
 #[derive(Debug, Clone)]
 pub struct AudioElement {
     pub audio_element_id: u32,
@@ -209,14 +212,14 @@ pub struct ParameterDefinition {
     pub duration: u32,
     pub constant_subblock_duration: u32,
     /// Parameter payload kind (`parameter_definition_type` field in the
-    /// audio_element OBU): MixGain / DemixingInfo / ReconGain.
+    /// `audio_element` OBU): `MixGain` / `DemixingInfo` / `ReconGain`.
     pub parameter_kind: ParameterDataKind,
     /// Default `dmixp_mode` from `DefaultDemixingInfoParameterData`.
     /// Present only for Demixing definitions; applies until per-frame
     /// parameter blocks arrive.
     pub default_dmixp_mode: Option<u8>,
     /// Default weight index from `DefaultDemixingInfoParameterData`
-    /// (`default_w`, 4 bits). Directly indicates w(k) when no DemixingInfo
+    /// (`default_w`, 4 bits). Directly indicates w(k) when no `DemixingInfo`
     /// parameter blocks exist.
     pub default_w: Option<u8>,
 }
@@ -235,6 +238,7 @@ pub struct DmixParams {
 
 impl DmixParams {
     /// Parameters for a `dmixp_mode` value. Modes 3 and 7 are reserved.
+    #[must_use]
     pub fn for_mode(mode: u8) -> Option<Self> {
         match mode {
             0 => Some(Self {
@@ -294,7 +298,8 @@ pub enum ParameterDataKind {
 }
 
 impl ParameterDataKind {
-    /// IAMF v1.1.0 §3.6.4 parameter_definition_type values.
+    /// IAMF v1.1.0 §3.6.4 `parameter_definition_type` values.
+    #[must_use]
     pub fn from_u32(v: u32) -> Option<Self> {
         match v {
             0 => Some(Self::MixGain),
@@ -383,7 +388,7 @@ pub struct ReconLayerGains {
     pub gains: Vec<f32>,
 }
 
-/// Descriptor-side context needed to size a ReconGain payload: the owning
+/// Descriptor-side context needed to size a `ReconGain` payload: the owning
 /// audio element's layer count plus per-layer `recon_gain_is_present`.
 #[derive(Debug, Clone)]
 pub struct ReconGainLayout {
@@ -427,6 +432,7 @@ pub enum AnimationType {
 }
 
 impl AnimationType {
+    #[must_use]
     pub fn from_u8(v: u8) -> Option<Self> {
         match v {
             0 => Some(Self::Step),

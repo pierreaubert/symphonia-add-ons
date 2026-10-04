@@ -42,7 +42,7 @@ fn test_obu_type_from_u8() {
     assert_eq!(ObuType::from_u8(5).unwrap(), ObuType::AudioFrame);
     assert_eq!(ObuType::from_u8(6).unwrap(), ObuType::AudioFrameId(0));
     assert_eq!(ObuType::from_u8(31).unwrap(), ObuType::SequenceHeader);
-    assert!(ObuType::from_u8(25).is_err());
+    ObuType::from_u8(25).unwrap_err();
 }
 
 #[test]
@@ -76,9 +76,9 @@ fn test_obu_header_minimal() {
     assert_eq!(header_size, 2);
 }
 
-/// Build a minimal MixGain-style parameter_block payload:
-/// parameter_id (leb128) + duration (leb128) + constant_subblock_duration
-/// (leb128) + 1 subblock with animation_type=Step + start_value (Q7.8).
+/// Build a minimal MixGain-style `parameter_block` payload:
+/// `parameter_id` (leb128) + duration (leb128) + `constant_subblock_duration`
+/// (leb128) + 1 subblock with `animation_type=Step` + `start_value` (Q7.8).
 fn build_param_block_payload(parameter_id: u8) -> Vec<u8> {
     vec![
         parameter_id, // parameter_id (leb128, <128 so 1 byte)
@@ -90,9 +90,9 @@ fn build_param_block_payload(parameter_id: u8) -> Vec<u8> {
     ]
 }
 
-/// DemixingInfo block carries `dmixp_mode (3) + reserved (5)` — only 1 byte
-/// of payload. If the parser silently treats it as MixGain it consumes
-/// 3 extra bytes (animation_byte + i16 start) and corrupts the gain.
+/// `DemixingInfo` block carries `dmixp_mode (3) + reserved (5)` — only 1 byte
+/// of payload. If the parser silently treats it as `MixGain` it consumes
+/// 3 extra bytes (`animation_byte` + i16 start) and corrupts the gain.
 /// The fix dispatches on the parameter kind from the descriptor.
 #[test]
 fn parameter_block_demixing_info_not_silently_mix_gain() {
@@ -130,7 +130,7 @@ fn parameter_block_demixing_info_not_silently_mix_gain() {
     );
 }
 
-/// MixGain payload still parses correctly under the new dispatch.
+/// `MixGain` payload still parses correctly under the new dispatch.
 #[test]
 fn parameter_block_mix_gain_still_parses() {
     let payload = build_param_block_payload(3);
@@ -150,8 +150,8 @@ fn parameter_block_mix_gain_still_parses() {
     }
 }
 
-/// ReconGain payloads are consumed per the v1.1.0 bit layout: for each
-/// layer with recon_gain_is_present, a leb128 flags bitmask followed by one
+/// `ReconGain` payloads are consumed per the v1.1.0 bit layout: for each
+/// layer with `recon_gain_is_present`, a leb128 flags bitmask followed by one
 /// u8 per set bit (gain = byte / 255).
 #[test]
 fn parameter_block_recon_gain_parses_values() {
@@ -191,7 +191,7 @@ fn parameter_block_recon_gain_parses_values() {
     }
 }
 
-/// Layers without recon_gain_is_present consume no bytes.
+/// Layers without `recon_gain_is_present` consume no bytes.
 #[test]
 fn parameter_block_recon_gain_skips_absent_layers() {
     // Layer 0 absent, layer 1 present with flags=0x01 + 1 gain byte.
@@ -233,13 +233,13 @@ fn parameter_block_recon_gain_rejects_bad_payloads() {
     )]);
     // flags = 0x1000 (bit 12): outside the 12 defined channels.
     let bad_flags = vec![9u8, 10, 10, 0x80, 0x20];
-    assert!(parse_parameter_block_with_kind(&bad_flags, &kinds, &recon).is_err());
+    parse_parameter_block_with_kind(&bad_flags, &kinds, &recon).unwrap_err();
     // flags promise 2 gains but only 1 byte follows.
     let truncated = vec![9u8, 10, 10, 0x03, 100];
-    assert!(parse_parameter_block_with_kind(&truncated, &kinds, &recon).is_err());
+    parse_parameter_block_with_kind(&truncated, &kinds, &recon).unwrap_err();
 }
 
-/// ReconGain without a descriptor layout cannot be sized, so it errors
+/// `ReconGain` without a descriptor layout cannot be sized, so it errors
 /// instead of emitting empty gains.
 #[test]
 fn parameter_block_recon_gain_without_layout_errors() {
@@ -247,7 +247,7 @@ fn parameter_block_recon_gain_without_layout_errors() {
     let mut kinds = HashMap::new();
     kinds.insert(9u32, ParameterDataKind::ReconGain);
     let empty: HashMap<u32, ReconGainLayout> = HashMap::new();
-    assert!(parse_parameter_block_with_kind(&payload, &kinds, &empty).is_err());
+    parse_parameter_block_with_kind(&payload, &kinds, &empty).unwrap_err();
 }
 
 /// `bounded_capacity` must reject leb128 counts greater than the byte
@@ -255,15 +255,15 @@ fn parameter_block_recon_gain_without_layout_errors() {
 #[test]
 fn bounded_capacity_rejects_unbounded_values() {
     // 100 elements but only 5 bytes remain.
-    assert!(bounded_capacity(100, 5).is_err());
+    bounded_capacity(100, 5).unwrap_err();
     // Above MAX_LEB128_CAPACITY.
-    assert!(bounded_capacity(u32::MAX, 1024 * 1024 * 1024).is_err());
+    bounded_capacity(u32::MAX, 1024 * 1024 * 1024).unwrap_err();
     // Reasonable counts pass.
     assert_eq!(bounded_capacity(10, 1024).unwrap(), 10);
     assert_eq!(bounded_capacity(0, 0).unwrap(), 0);
 }
 
-/// Adversarial audio_element with a huge `num_substreams` leb128 must be
+/// Adversarial `audio_element` with a huge `num_substreams` leb128 must be
 /// rejected before the allocator is asked for gigabytes.
 #[test]
 fn parse_audio_element_rejects_unbounded_leb128_substreams() {
@@ -329,7 +329,7 @@ fn mix_presentation_layouts(layouts: &[u8]) -> Vec<u8> {
     mp.extend(leb(0)); // rendering extension size
     mp.extend(mix_gain_config(10));
     mp.extend(mix_gain_config(11));
-    mp.extend(leb(layouts.len() as u32)); // num_layouts
+    mp.extend(leb(u32::try_from(layouts.len()).expect("fixture holds few layouts"))); // num_layouts
     for &layout in layouts {
         mp.push(layout);
         mp.extend_from_slice(&[0x00, 0xE9, 0x00, 0xFF, 0x00]); // loudness

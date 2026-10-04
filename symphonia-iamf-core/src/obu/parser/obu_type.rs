@@ -15,6 +15,10 @@ pub enum ObuType {
 }
 
 impl ObuType {
+    /// Decode an OBU type from its 5-bit header value.
+    ///
+    /// # Errors
+    /// Returns `IamfError::InvalidObuType` for reserved values.
     pub fn from_u8(val: u8) -> IamfResult<Self> {
         match val {
             0 => Ok(Self::CodecConfig),

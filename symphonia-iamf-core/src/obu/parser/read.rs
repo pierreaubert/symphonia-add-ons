@@ -1,7 +1,11 @@
 use crate::error::{IamfError, IamfResult};
 
 /// Read a leb128-encoded unsigned integer from a byte slice.
-/// Returns (value, bytes_consumed).
+/// Returns (value, `bytes_consumed`).
+///
+/// # Errors
+/// Returns `IamfError::ParseError` if the value overflows `u64` or the
+/// data ends before a terminating byte.
 pub fn read_leb128(data: &[u8]) -> IamfResult<(u64, usize)> {
     let mut result: u64 = 0;
     let mut shift = 0;
@@ -9,7 +13,7 @@ pub fn read_leb128(data: &[u8]) -> IamfResult<(u64, usize)> {
         if shift >= 64 {
             return Err(IamfError::ParseError("leb128 overflow".into()));
         }
-        result |= (byte as u64 & 0x7F) << shift;
+        result |= (u64::from(byte) & 0x7F) << shift;
         shift += 7;
         if byte & 0x80 == 0 {
             return Ok((result, i + 1));
@@ -22,7 +26,7 @@ pub fn read_leb128(data: &[u8]) -> IamfResult<(u64, usize)> {
 pub(super) fn read_leb128_u32(data: &[u8], pos: &mut usize) -> IamfResult<u32> {
     let (val, consumed) = read_leb128(&data[*pos..])?;
     *pos += consumed;
-    Ok(val as u32)
+    u32::try_from(val).map_err(|_| IamfError::ParseError(format!("leb128 value {val} exceeds u32")))
 }
 
 pub(super) fn read_u8(data: &[u8], pos: &mut usize) -> IamfResult<u8> {
@@ -70,7 +74,7 @@ pub(super) fn read_bytes<'a>(data: &'a [u8], pos: &mut usize, n: usize) -> IamfR
     Ok(slice)
 }
 
-pub(super) fn read_string(data: &[u8], pos: &mut usize) -> IamfResult<String> {
+pub(super) fn read_string(data: &[u8], pos: &mut usize) -> String {
     // IAMF strings are null-terminated
     let start = *pos;
     while *pos < data.len() && data[*pos] != 0 {
@@ -80,5 +84,5 @@ pub(super) fn read_string(data: &[u8], pos: &mut usize) -> IamfResult<String> {
     if *pos < data.len() {
         *pos += 1; // skip null terminator
     }
-    Ok(s)
+    s
 }

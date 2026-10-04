@@ -17,14 +17,14 @@ mod tests {
         // leb128 encoding of u64::MAX requires 10 bytes, but shift >= 64 triggers
         // overflow before the value is complete. Use 10 continuation bytes.
         let data = [0xff; 10];
-        assert!(read_leb128(&data).is_err());
+        read_leb128(&data).unwrap_err();
     }
 
     #[test]
     fn read_leb128_truncated() {
         // All high bits set, no terminating byte.
         let data = [0xff, 0xff, 0xff];
-        assert!(read_leb128(&data).is_err());
+        read_leb128(&data).unwrap_err();
     }
 
     #[test]
@@ -37,14 +37,14 @@ mod tests {
 
     #[test]
     fn parse_obu_header_empty_errors() {
-        assert!(parse_obu_header(&[]).is_err());
+        parse_obu_header(&[]).unwrap_err();
     }
 
     #[test]
     fn parse_obu_header_truncated_payload() {
         // OBU type=0, payload_size=10, but only 2 bytes of payload.
         let data = [0x00, 10, 0x00, 0x00];
-        assert!(parse_obu_header(&data).is_err());
+        parse_obu_header(&data).unwrap_err();
     }
 
     #[test]
@@ -91,6 +91,6 @@ mod tests {
 
     #[test]
     fn parse_sequence_header_too_short_errors() {
-        assert!(parse_sequence_header(b"ia").is_err());
+        parse_sequence_header(b"ia").unwrap_err();
     }
 }
