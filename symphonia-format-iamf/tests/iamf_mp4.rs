@@ -7,8 +7,6 @@
 
 use std::io::Cursor;
 
-use symphonia_iamf_core::obu::parse_descriptors;
-use symphonia_iamf_core::obu::parser::parse_temporal_unit_with_kinds;
 use symphonia_core::codecs::CodecParameters;
 use symphonia_core::codecs::audio::well_known::{
     CODEC_ID_AAC, CODEC_ID_FLAC, CODEC_ID_OPUS, CODEC_ID_PCM_S16BE,
@@ -19,6 +17,8 @@ use symphonia_core::formats::{FormatOptions, FormatReader, SeekMode, SeekTo};
 use symphonia_core::io::{MediaSourceStream, MediaSourceStreamOptions};
 use symphonia_core::meta::MetadataOptions;
 use symphonia_core::units::{Duration, Time, Timestamp};
+use symphonia_iamf_core::obu::parse_descriptors;
+use symphonia_iamf_core::obu::parser::parse_temporal_unit_with_kinds;
 
 use symphonia_format_iamf::{
     IamfFormatReader, reassemble_ia_sequence, register_all, register_decoders,
