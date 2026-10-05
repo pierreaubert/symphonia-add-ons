@@ -329,7 +329,9 @@ fn mix_presentation_layouts(layouts: &[u8]) -> Vec<u8> {
     mp.extend(leb(0)); // rendering extension size
     mp.extend(mix_gain_config(10));
     mp.extend(mix_gain_config(11));
-    mp.extend(leb(u32::try_from(layouts.len()).expect("fixture holds few layouts"))); // num_layouts
+    mp.extend(leb(
+        u32::try_from(layouts.len()).expect("fixture holds few layouts")
+    )); // num_layouts
     for &layout in layouts {
         mp.push(layout);
         mp.extend_from_slice(&[0x00, 0xE9, 0x00, 0xFF, 0x00]); // loudness
