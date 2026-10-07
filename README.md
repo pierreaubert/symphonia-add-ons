@@ -20,9 +20,9 @@ suitable for upstreaming.
   `rdsd2pcm`.
 - `symphonia-codec-wavpack` -- Native WavPack reader and decoder following
   Symphonia conventions.
-- `dst-decoder` -- Rust DST frame decoder used by the SACD DST codec bridge.
-- `rdsd2pcm` -- Rust DSD-to-PCM conversion library used by the DSD and DST
-  Symphonia decoders and extraction examples.
+The imported `dst-decoder` and `rdsd2pcm` forks (including `dsd-reader`) live in
+[`sotf-3rdparties`](../sotf-3rdparties/README.md). They remain local dependencies
+of the SACD/DSD/DST integration crates.
 
 ## Integration
 
@@ -59,6 +59,6 @@ cargo test -p symphonia-format-sacd
 cargo test -p symphonia-codec-dsd
 cargo test -p symphonia-codec-dst
 cargo test -p symphonia-codec-wavpack
-cargo test -p dst-decoder
-cargo test -p rdsd2pcm
+cargo test --manifest-path ../sotf-3rdparties/dst-decoder/Cargo.toml
+cargo test --manifest-path ../sotf-3rdparties/rdsd2pcm/Cargo.toml
 ```
